@@ -22,13 +22,13 @@ class HelpViewController: UITableViewController {
 
         var title: String {
             switch self {
-            case .gettingStarted: return "Getting Started"
-            case .icloudSetup: return "iCloud Setup"
-            case .scanning: return "How to Scan"
-            case .features: return "Features"
-            case .export: return "Export Options"
-            case .tips: return "Pro Tips"
-            case .troubleshooting: return "Troubleshooting"
+            case .gettingStarted: return L10n.Help.gettingStarted.localized
+            case .icloudSetup: return L10n.Help.icloudSetup.localized
+            case .scanning: return L10n.Help.scanning.localized
+            case .features: return L10n.Home.features.localized
+            case .export: return L10n.Help.exporting.localized
+            case .tips: return L10n.Help.tips.localized
+            case .troubleshooting: return L10n.Help.troubleshooting.localized
             }
         }
     }
@@ -37,7 +37,7 @@ class HelpViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Help & Features"
+        title = L10n.Help.title.localized
 
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,
@@ -108,17 +108,8 @@ class HelpViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "HelpCell", for: indexPath) as! HelpCell
         cell.configure(
             icon: "play.circle.fill",
-            title: "Welcome to RoomPlan",
-            description: """
-            This app uses your device's LiDAR scanner to create accurate 3D models of rooms.
-
-            Requirements for Scanning:
-            • iPhone 12 Pro or later
-            • iPad Pro (2020 or later)
-            • iOS 16.0 or later
-
-            Note: You can view saved rooms on any device, even without LiDAR! Use iCloud to sync rooms across devices.
-            """
+            title: L10n.Onboarding.welcome.localized,
+            description: L10n.Help.gettingStartedContent.localized
         )
         return cell
     }
@@ -127,26 +118,8 @@ class HelpViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "HelpCell", for: indexPath) as! HelpCell
         cell.configure(
             icon: "icloud.circle.fill",
-            title: "Sync Saved Rooms with iCloud",
-            description: """
-            Enable iCloud sync to access your saved rooms on all your devices - even those without LiDAR!
-
-            How to Enable:
-            1. Go to Settings (gear icon)
-            2. Toggle "iCloud Sync" ON
-            3. Your rooms will automatically sync
-
-            Requirements:
-            • Signed in to iCloud in iOS Settings
-            • iCloud Drive enabled
-            • Internet connection
-
-            Benefits:
-            • Access scans from non-LiDAR devices
-            • Automatic backup of your scans
-            • Share rooms across iPhone and iPad
-            • View 3D models anywhere
-            """
+            title: L10n.Help.icloudSetup.localized,
+            description: L10n.Help.icloudSetupContent.localized
         )
         return cell
     }
@@ -155,23 +128,8 @@ class HelpViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "HelpCell", for: indexPath) as! HelpCell
         cell.configure(
             icon: "camera.viewfinder",
-            title: "How to Scan a Room",
-            description: """
-            1. Tap "Start New Scan" on the home screen
-            2. Point your device at a corner of the room
-            3. Slowly move along each wall, keeping the wall in view
-            4. Scan all walls, windows, doors, and openings
-            5. Include furniture and objects you want to capture
-            6. Watch the bottom preview to see your progress
-            7. Tap "Done" when the room looks complete
-
-            Tips for Best Results:
-            • Keep your device upright
-            • Move slowly and steadily
-            • Ensure good lighting
-            • Scan each wall at least once
-            • Get close to details you want captured
-            """
+            title: L10n.Help.scanning.localized,
+            description: L10n.Help.scanningContent.localized
         )
         return cell
     }
@@ -180,20 +138,11 @@ class HelpViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "HelpCell", for: indexPath) as! HelpCell
 
         let features = [
-            ("cube.transparent.fill", "3D Room Capture",
-             "Create accurate 3D models with LiDAR technology. The app automatically detects walls, windows, doors, and furniture."),
-
-            ("wifi", "WiFi Heatmap",
-             "Enable WiFi tracking during scanning to create a signal strength heatmap. Perfect for planning router placement. Requires location permission."),
-
-            ("camera.fill", "Photo Capture",
-             "Take photos during scanning to document the space. Photos are saved with your scan and shown on the floor plan."),
-
-            ("square.and.arrow.up", "Multiple Export Formats",
-             "Export your scans in various formats:\n• USDZ - 3D model for AR/Preview\n• OBJ - 3D model for CAD software\n• STL - 3D model for 3D printing\n• DXF - Floor plan for CAD\n• SVG - Floor plan vector\n• PNG - Floor plan image"),
-
-            ("icloud.fill", "iCloud Sync (Optional)",
-             "Enable in Settings to sync your scans across all your devices. When enabled, scans are stored in iCloud Drive and available on all devices signed in with your Apple ID.")
+            ("cube.transparent.fill", L10n.Help.feature3DTitle.localized, L10n.Help.feature3DDesc.localized),
+            ("wifi", L10n.Help.featureWiFiTitle.localized, L10n.Help.featureWiFiDesc.localized),
+            ("camera.fill", L10n.Help.featurePhotoTitle.localized, L10n.Help.featurePhotoDesc.localized),
+            ("square.and.arrow.up", L10n.Help.featureExportTitle.localized, L10n.Help.featureExportDesc.localized),
+            ("icloud.fill", L10n.Help.featureICloudTitle.localized, L10n.Help.featureICloudDesc.localized)
         ]
 
         let feature = features[indexPath.row]
@@ -205,28 +154,8 @@ class HelpViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "HelpCell", for: indexPath) as! HelpCell
         cell.configure(
             icon: "square.and.arrow.up.fill",
-            title: "Export Your Scans",
-            description: """
-            After completing a scan, you can export it in multiple formats:
-
-            3D Model Formats:
-            • USDZ - Best for Apple devices, AR Quick Look
-            • OBJ - Universal 3D format for modeling software
-            • STL - For 3D printing applications
-
-            Floor Plan Formats:
-            • PNG - Image for quick sharing
-            • SVG - Vector format for graphic design
-            • DXF - CAD format for architects/designers
-
-            To export:
-            1. Complete your scan or open a saved room
-            2. Tap the export button
-            3. Choose your format
-            4. Share via AirDrop, email, or save to Files
-
-            All measurements are included in the exported files.
-            """
+            title: L10n.Help.exporting.localized,
+            description: L10n.Help.exportingContent.localized
         )
         return cell
     }
@@ -235,20 +164,11 @@ class HelpViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "HelpCell", for: indexPath) as! HelpCell
 
         let tips = [
-            ("lightbulb.fill", "Lighting is Key",
-             "Scan in good lighting conditions. Natural daylight or bright indoor lighting works best. Avoid very dark or very bright areas."),
-
-            ("tortoise.fill", "Slow and Steady",
-             "Move slowly and smoothly. Rapid movements or shaking can affect scan quality. Take your time for best results."),
-
-            ("arrow.triangle.2.circlepath", "Scan Multiple Times",
-             "If you're not happy with the first scan, try again! Each room is different and sometimes it takes a few attempts to get it perfect."),
-
-            ("square.stack.3d.up.fill", "Save Everything",
-             "Enable auto-save in Settings so you never lose a scan. You can always delete unwanted scans later."),
-
-            ("chart.xyaxis.line", "Check Measurements",
-             "After scanning, tap to view floor plan and verify measurements look correct. The app shows dimensions in meters or feet.")
+            ("lightbulb.fill", L10n.Help.tipLightingTitle.localized, L10n.Help.tipLightingDesc.localized),
+            ("tortoise.fill", L10n.Help.tipSlowTitle.localized, L10n.Help.tipSlowDesc.localized),
+            ("arrow.triangle.2.circlepath", L10n.Help.tipRetryTitle.localized, L10n.Help.tipRetryDesc.localized),
+            ("square.stack.3d.up.fill", L10n.Help.tipSaveTitle.localized, L10n.Help.tipSaveDesc.localized),
+            ("chart.xyaxis.line", L10n.Help.tipMeasureTitle.localized, L10n.Help.tipMeasureDesc.localized)
         ]
 
         let tip = tips[indexPath.row]
@@ -260,17 +180,10 @@ class HelpViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "HelpCell", for: indexPath) as! HelpCell
 
         let issues = [
-            ("exclamationmark.triangle.fill", "Scan Not Starting",
-             "Ensure you have a LiDAR-enabled device (iPhone 12 Pro or later, iPad Pro 2020+). Check that camera permissions are granted in Settings → Privacy → Camera."),
-
-            ("camera.metering.partial", "Poor Scan Quality",
-             "Try these fixes:\n• Improve room lighting\n• Move more slowly\n• Get closer to walls and objects\n• Scan each wall multiple times\n• Clear obstructions from camera lens"),
-
-            ("internaldrive.fill", "Scans Disappeared",
-             "If scans are missing after updating the app:\n• Check Settings → iCloud Sync\n• Scans are now stored in Application Support\n• Old scans may be in Documents folder"),
-
-            ("wifi.slash", "WiFi Heatmap Not Working",
-             "WiFi tracking requires:\n• Location permission (Settings → Privacy → Location)\n• WiFi enabled on device\n• Connected to a WiFi network\n• Toggle ON in scan screen or Settings")
+            ("exclamationmark.triangle.fill", L10n.Help.troubleNotStartingTitle.localized, L10n.Help.troubleNotStartingDesc.localized),
+            ("camera.metering.partial", L10n.Help.troublePoorQualityTitle.localized, L10n.Help.troublePoorQualityDesc.localized),
+            ("internaldrive.fill", L10n.Help.troubleDisappearedTitle.localized, L10n.Help.troubleDisappearedDesc.localized),
+            ("wifi.slash", L10n.Help.troubleWiFiTitle.localized, L10n.Help.troubleWiFiDesc.localized)
         ]
 
         let issue = issues[indexPath.row]

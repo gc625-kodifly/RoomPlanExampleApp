@@ -25,12 +25,26 @@ final class RoomStorageManager {
         let baseDir: URL
 
         // Use iCloud if enabled and available
-        if AppSettings.shared.iCloudSyncEnabled,
-           let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: nil) {
-            baseDir = iCloudURL.appendingPathComponent("Documents")
+        if AppSettings.shared.iCloudSyncEnabled {
             #if DEBUG
-            print("✅ Using iCloud directory: \(baseDir.path)")
+            print("📱 iCloud sync enabled in settings")
+            print("🔑 ubiquityIdentityToken: \(fileManager.ubiquityIdentityToken != nil ? "present" : "nil")")
             #endif
+
+            // Use iCloud container - explicitly request the app's container
+            if let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.trahe.eu.RoomPlanSimple") {
+                baseDir = iCloudURL.appendingPathComponent("Documents")
+                #if DEBUG
+                print("✅ Using iCloud directory: \(baseDir.path)")
+                print("📦 iCloud container ID: iCloud.trahe.eu.RoomPlanSimple")
+                print("🔗 Full iCloud URL: \(iCloudURL.path)")
+                #endif
+            } else {
+                #if DEBUG
+                print("⚠️  iCloud not available - falling back to local storage")
+                #endif
+                baseDir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            }
         } else {
             // Use Application Support (persists across app updates, not backed up by default)
             baseDir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -39,23 +53,37 @@ final class RoomStorageManager {
             #endif
         }
 
-        let roomsDir = baseDir.appendingPathComponent("SavedRooms", isDirectory: true)
-
-        if !fileManager.fileExists(atPath: roomsDir.path) {
-            do {
-                try fileManager.createDirectory(at: roomsDir, withIntermediateDirectories: true)
-                #if DEBUG
-                print("📁 Created SavedRooms directory at: \(roomsDir.path)")
-                #endif
-            } catch {
-                #if DEBUG
-                print("❌ Failed to create directory: \(error)")
-                #endif
+        // Don't use subdirectories in iCloud - save directly to base directory
+        // Subdirectories can cause sync issues with iCloud
+        let roomsDir: URL
+        if AppSettings.shared.iCloudSyncEnabled && AppSettings.shared.isICloudAvailable {
+            // For iCloud, use base directory directly
+            roomsDir = baseDir
+            #if DEBUG
+            print("📂 Rooms directory (iCloud): \(roomsDir.path)")
+            print("💡 Files saved directly in iCloud container for reliable sync")
+            #endif
+        } else {
+            // For local storage, use subdirectory
+            roomsDir = baseDir.appendingPathComponent("SavedRooms", isDirectory: true)
+            if !fileManager.fileExists(atPath: roomsDir.path) {
+                do {
+                    try fileManager.createDirectory(at: roomsDir, withIntermediateDirectories: true)
+                    #if DEBUG
+                    print("📁 Created SavedRooms directory at: \(roomsDir.path)")
+                    #endif
+                } catch {
+                    #if DEBUG
+                    print("❌ Failed to create directory: \(error)")
+                    #endif
+                }
             }
+            #if DEBUG
+            print("📂 Rooms directory (local): \(roomsDir.path)")
+            #endif
         }
 
         #if DEBUG
-        print("📂 SavedRooms directory: \(roomsDir.path)")
         print("📊 iCloud enabled: \(AppSettings.shared.iCloudSyncEnabled)")
         print("☁️  iCloud available: \(AppSettings.shared.isICloudAvailable)")
         #endif
@@ -68,7 +96,7 @@ final class RoomStorageManager {
     // MARK: - Public API
 
     /// Save a captured room with metadata and floor plan image
-    func saveRoom(_ room: CapturedRoom, name: String? = nil, photoManager: PhotoCaptureManager? = nil) throws -> SavedRoom {
+    func saveRoom(_ room: CapturedRoom, name: String? = nil, photoManager: PhotoCaptureManager? = nil, wifiManager: WiFiSignalManager? = nil) throws -> SavedRoom {
         let id = UUID()
         let timestamp = Date()
         let roomName = name ?? "Room \(formatDate(timestamp))"
@@ -90,6 +118,9 @@ final class RoomStorageManager {
             try? data.write(to: floorPlanDataURL)
         }
 
+        // Detect room type
+        let roomTypeResult = RoomTypeDetector.detectRoomType(from: room)
+
         // Save photos if photo manager provided
         if let photoManager = photoManager, photoManager.photoCount > 0 {
             do {
@@ -101,6 +132,21 @@ final class RoomStorageManager {
             } catch {
                 #if DEBUG
                 print("⚠️  Failed to save photos: \(error)")
+                #endif
+            }
+        }
+
+        // Save WiFi samples if WiFi manager provided
+        var wifiURL: URL? = nil
+        if let wifiManager = wifiManager, wifiManager.sampleCount > 0 {
+            let wifiSamples = wifiManager.collectedSamples
+            let wifiFileName = "\(id.uuidString)_wifi.json"
+            let url = savedRoomsDirectory.appendingPathComponent(wifiFileName)
+            if let data = try? encoder.encode(wifiSamples) {
+                try? data.write(to: url)
+                wifiURL = url
+                #if DEBUG
+                print("📡 Saved \(wifiSamples.count) WiFi samples to \(url.path)")
                 #endif
             }
         }
@@ -120,13 +166,20 @@ final class RoomStorageManager {
             roomHeight: stats.roomHeight,
             roomDepth: stats.roomDepth,
             usdzFileName: "\(id.uuidString).usdz",
-            floorPlanFileName: floorPlanFileName
+            floorPlanFileName: floorPlanFileName,
+            roomType: roomTypeResult.roomType,
+            roomTypeConfidence: roomTypeResult.confidence
         )
 
         // Save metadata
         let metadataURL = savedRoomsDirectory.appendingPathComponent("\(id.uuidString).json")
         let data = try encoder.encode(metadata)
         try data.write(to: metadataURL)
+
+        // Trigger iCloud sync if using iCloud
+        if AppSettings.shared.iCloudSyncEnabled {
+            triggerICloudSync(for: [usdzURL, floorPlanURL, floorPlanDataURL, wifiURL, metadataURL].compactMap { $0 })
+        }
 
         return metadata
     }
@@ -187,6 +240,11 @@ final class RoomStorageManager {
     /// This is a limitation of the RoomPlan API - CapturedRoom is only available during live scanning.
     /// To view saved rooms, use the USDZ file directly with SceneKit.
 
+    /// Get the URL for a specific room file
+    func getRoomFileURL(for room: SavedRoom, filename: String) -> URL {
+        return savedRoomsDirectory.appendingPathComponent(filename)
+    }
+
     /// Load WiFi samples for a saved room
     func loadWiFiSamples(for room: SavedRoom) -> [WiFiSample] {
         let wifiURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_wifi.json")
@@ -214,6 +272,43 @@ final class RoomStorageManager {
         guard let url = getFloorPlanURL(for: room),
               let data = try? Data(contentsOf: url) else { return nil }
         return UIImage(data: data)
+    }
+
+    /// Load photos for a saved room
+    func getPhotos(for room: SavedRoom) -> [UIImage] {
+        let roomDirectory = savedRoomsDirectory.appendingPathComponent(room.id.uuidString, isDirectory: true)
+        let photosDirectory = roomDirectory.appendingPathComponent("photos", isDirectory: true)
+
+        // Check photos subdirectory first (new structure)
+        let directoryToScan: URL
+        if fileManager.fileExists(atPath: photosDirectory.path) {
+            directoryToScan = photosDirectory
+        } else if fileManager.fileExists(atPath: roomDirectory.path) {
+            directoryToScan = roomDirectory
+        } else {
+            return []
+        }
+
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: directoryToScan,
+                                                               includingPropertiesForKeys: nil)
+
+            let imageURLs = contents.filter {
+                $0.pathExtension.lowercased() == "jpg" ||
+                $0.pathExtension.lowercased() == "jpeg" ||
+                $0.pathExtension.lowercased() == "png"
+            }.sorted { $0.path < $1.path }  // Sort alphabetically
+
+            return imageURLs.compactMap { url in
+                guard let data = try? Data(contentsOf: url) else { return nil }
+                return UIImage(data: data)
+            }
+        } catch {
+            #if DEBUG
+            print("⚠️  Failed to load photos: \(error)")
+            #endif
+            return []
+        }
     }
 
     /// Export saved room to OBJ format
@@ -285,8 +380,11 @@ final class RoomStorageManager {
         // Clean up any existing file
         try? fileManager.removeItem(at: svgURL)
 
-        // Generate SVG
-        let svgContent = FloorPlanExporter.exportToSVG(data: floorPlanData, includeDimensions: true)
+        // Load WiFi samples if available
+        let wifiSamples = loadWiFiSamples(for: room)
+
+        // Generate SVG with WiFi data
+        let svgContent = FloorPlanExporter.exportToSVG(data: floorPlanData, wifiSamples: wifiSamples, includeDimensions: true)
         try svgContent.write(to: svgURL, atomically: true, encoding: .utf8)
 
         return svgURL
@@ -305,11 +403,54 @@ final class RoomStorageManager {
         // Clean up any existing file
         try? fileManager.removeItem(at: dxfURL)
 
-        // Generate DXF
-        let dxfContent = FloorPlanExporter.exportToDXF(data: floorPlanData, includeDimensions: true)
+        // Load WiFi samples if available
+        let wifiSamples = loadWiFiSamples(for: room)
+
+        // Generate DXF with WiFi data
+        let dxfContent = FloorPlanExporter.exportToDXF(data: floorPlanData, wifiSamples: wifiSamples, includeDimensions: true)
         try dxfContent.write(to: dxfURL, atomically: true, encoding: .utf8)
 
         return dxfURL
+    }
+
+    /// Export saved room floor plan to IFC format (BIM)
+    func exportToIFC(for room: SavedRoom) throws -> URL {
+        let floorPlanData = loadFloorPlanData(for: room) ?? generateFloorPlanFromMetadata(room)
+
+        let ifcFileName = "\(room.id.uuidString).ifc"
+        let ifcURL = fileManager.temporaryDirectory.appendingPathComponent(ifcFileName)
+
+        // Clean up any existing file
+        try? fileManager.removeItem(at: ifcURL)
+
+        // Generate IFC via Rust bimifc-writer
+        try IfcExportBridge.writeIFC(from: floorPlanData, to: ifcURL, roomName: room.name)
+
+        return ifcURL
+    }
+
+    /// Generate basic FloorPlanData from SavedRoom metadata (for rooms saved before floor plan JSON was added)
+    private func generateFloorPlanFromMetadata(_ room: SavedRoom) -> FloorPlanData {
+        let w = CGFloat(room.roomWidth > 0 ? room.roomWidth : 4.0)
+        let d = CGFloat(room.roomDepth > 0 ? room.roomDepth : 3.0)
+        let wallThickness: CGFloat = 0.15
+
+        // Generate 4 walls forming a rectangle
+        let walls: [FloorPlanElement] = [
+            // Bottom wall (along X axis)
+            FloorPlanElement(rect: CGRect(x: 0, y: 0, width: w, height: wallThickness), rotation: 0, type: .wall, label: nil),
+            // Top wall
+            FloorPlanElement(rect: CGRect(x: 0, y: d - wallThickness, width: w, height: wallThickness), rotation: 0, type: .wall, label: nil),
+            // Left wall (along Z axis)
+            FloorPlanElement(rect: CGRect(x: 0, y: 0, width: wallThickness, height: d), rotation: 0, type: .wall, label: nil),
+            // Right wall
+            FloorPlanElement(rect: CGRect(x: w - wallThickness, y: 0, width: wallThickness, height: d), rotation: 0, type: .wall, label: nil),
+        ]
+
+        let boundingBox = CGRect(x: 0, y: 0, width: w, height: d)
+        let dimensions = (width: room.roomWidth, height: room.roomHeight > 0 ? room.roomHeight : 2.8, depth: room.roomDepth)
+
+        return FloorPlanData(elements: walls, boundingBox: boundingBox, roomDimensions: dimensions)
     }
 
     /// Delete a saved room
@@ -401,6 +542,99 @@ final class RoomStorageManager {
     }
     #endif
 
+    /// Export complete room data as folder with all files
+    func exportRoomAsZIP(for room: SavedRoom) throws -> URL {
+        let exportFolderName = "\(room.name.replacingOccurrences(of: " ", with: "_"))_Complete"
+        let exportDir = fileManager.temporaryDirectory.appendingPathComponent(exportFolderName, isDirectory: true)
+
+        // Remove existing export folder if present
+        try? fileManager.removeItem(at: exportDir)
+
+        // Create export directory
+        try fileManager.createDirectory(at: exportDir, withIntermediateDirectories: true)
+
+        // Copy USDZ file
+        let usdzURL = getUsdzURL(for: room)
+        if fileManager.fileExists(atPath: usdzURL.path) {
+            let destUSDZ = exportDir.appendingPathComponent("\(room.name).usdz")
+            try fileManager.copyItem(at: usdzURL, to: destUSDZ)
+        }
+
+        // Export floor plan as SVG (if floor plan data exists)
+        do {
+            let svgURL = try exportToSVG(for: room)
+            let destSVG = exportDir.appendingPathComponent("\(room.name)_floorplan.svg")
+            try fileManager.copyItem(at: svgURL, to: destSVG)
+        } catch {
+            #if DEBUG
+            print("⚠️  Could not export SVG: \(error)")
+            #endif
+        }
+
+        // Also copy original PNG floor plan image
+        if let floorPlanURL = getFloorPlanURL(for: room),
+           fileManager.fileExists(atPath: floorPlanURL.path) {
+            let destFloorPlan = exportDir.appendingPathComponent("\(room.name)_floorplan.png")
+            try fileManager.copyItem(at: floorPlanURL, to: destFloorPlan)
+        }
+
+        // Copy floor plan data JSON
+        let floorPlanDataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_floorplan.json")
+        if fileManager.fileExists(atPath: floorPlanDataURL.path) {
+            let destFloorPlanData = exportDir.appendingPathComponent("\(room.name)_floorplan.json")
+            try fileManager.copyItem(at: floorPlanDataURL, to: destFloorPlanData)
+        }
+
+        // Copy metadata JSON
+        let metadataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString).json")
+        if fileManager.fileExists(atPath: metadataURL.path) {
+            let destMetadata = exportDir.appendingPathComponent("\(room.name)_metadata.json")
+            try fileManager.copyItem(at: metadataURL, to: destMetadata)
+        }
+
+        // Copy WiFi data
+        let wifiURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_wifi.json")
+        if fileManager.fileExists(atPath: wifiURL.path) {
+            let destWiFi = exportDir.appendingPathComponent("\(room.name)_wifi.json")
+            try fileManager.copyItem(at: wifiURL, to: destWiFi)
+        }
+
+        // Copy photos
+        let photos = getPhotos(for: room)
+        if !photos.isEmpty {
+            let photosDir = exportDir.appendingPathComponent("photos", isDirectory: true)
+            try fileManager.createDirectory(at: photosDir, withIntermediateDirectories: true)
+
+            let roomDirectory = savedRoomsDirectory.appendingPathComponent(room.id.uuidString, isDirectory: true)
+            let photosDirectory = roomDirectory.appendingPathComponent("photos", isDirectory: true)
+
+            // Check photos subdirectory first (new structure), fallback to room directory
+            let sourceDirectory: URL
+            if fileManager.fileExists(atPath: photosDirectory.path) {
+                sourceDirectory = photosDirectory
+            } else {
+                sourceDirectory = roomDirectory
+            }
+
+            if let photoFiles = try? fileManager.contentsOfDirectory(at: sourceDirectory, includingPropertiesForKeys: nil) {
+                for (index, photoFile) in photoFiles.filter({ $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "png" }).enumerated() {
+                    let destPhoto = photosDir.appendingPathComponent("photo_\(String(format: "%03d", index + 1)).\(photoFile.pathExtension)")
+                    try? fileManager.copyItem(at: photoFile, to: destPhoto)
+                }
+            }
+        }
+
+        // iOS doesn't have Process for zip command, so we'll share the folder directly
+        // The folder will be exported with all contents
+        #if DEBUG
+        print("📦 Created export folder at: \(exportDir.path)")
+        print("   Contents: USDZ, floor plan, metadata, WiFi data, photos")
+        #endif
+
+        // Return the temp directory - UIActivityViewController can share folders on iOS 13+
+        return exportDir
+    }
+
     // MARK: - Private
 
     private func formatDate(_ date: Date) -> String {
@@ -408,14 +642,238 @@ final class RoomStorageManager {
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
         return formatter.string(from: date)
     }
+
+    /// Update room metadata (name, notes)
+    func updateRoom(_ room: SavedRoom) throws {
+        var updatedRoom = room
+        updatedRoom.lastModified = Date()
+
+        // Save updated metadata
+        let metadataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString).json")
+        let data = try encoder.encode(updatedRoom)
+        try data.write(to: metadataURL)
+
+        #if DEBUG
+        print("📝 Updated room: \(updatedRoom.name)")
+        print("🕒 Last modified: \(updatedRoom.lastModified)")
+        #endif
+
+        // Trigger iCloud sync if enabled
+        if AppSettings.shared.iCloudSyncEnabled {
+            triggerICloudSync(for: [metadataURL])
+        }
+    }
+
+    /// Migrate existing rooms to iCloud Drive
+    func migrateToICloud() throws -> Int {
+        guard AppSettings.shared.iCloudSyncEnabled else {
+            return 0
+        }
+
+        var migratedCount = 0
+        let iCloudDir = savedRoomsDirectory
+
+        #if DEBUG
+        print("🔄 Starting migration to iCloud Drive")
+        #endif
+
+        // Source 1: Local Application Support directory
+        let localBaseDir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let localRoomsDir = localBaseDir.appendingPathComponent("SavedRooms", isDirectory: true)
+
+        // Source 2: Old iCloud container with SavedRooms subdirectory
+        let oldContainerID = "iCloud.trahe.eu.RoomPlanSimple"
+        if let oldICloudBaseDir = fileManager.url(forUbiquityContainerIdentifier: oldContainerID)?.appendingPathComponent("Documents") {
+            let oldICloudSubdir = oldICloudBaseDir.appendingPathComponent("SavedRooms")
+
+            // Migrate from old iCloud SavedRooms subdirectory to Documents root
+            if fileManager.fileExists(atPath: oldICloudSubdir.path) {
+                #if DEBUG
+                print("📂 Migrating from iCloud subdirectory: \(oldICloudSubdir.path)")
+                print("📁 Destination: \(iCloudDir.path)")
+                #endif
+                migratedCount += try migrateFiles(from: oldICloudSubdir, to: iCloudDir)
+            }
+        }
+
+        // Migrate from local storage
+        if fileManager.fileExists(atPath: localRoomsDir.path) {
+            #if DEBUG
+            print("📂 Migrating from local: \(localRoomsDir.path)")
+            #endif
+            migratedCount += try migrateFiles(from: localRoomsDir, to: iCloudDir)
+        }
+
+        #if DEBUG
+        print("🎉 Migration complete: \(migratedCount) files migrated to iCloud Drive")
+        print("📁 New location: \(iCloudDir.path)")
+        #endif
+
+        // Trigger iCloud sync for all migrated files
+        if migratedCount > 0 {
+            let migratedFiles = try fileManager.contentsOfDirectory(at: iCloudDir, includingPropertiesForKeys: nil)
+            triggerICloudSync(for: migratedFiles)
+        }
+
+        return migratedCount
+    }
+
+    /// Helper to migrate files from one directory to another
+    private func migrateFiles(from sourceDir: URL, to destDir: URL) throws -> Int {
+        var count = 0
+        let contents = try fileManager.contentsOfDirectory(at: sourceDir, includingPropertiesForKeys: nil)
+
+        for sourceURL in contents {
+            let filename = sourceURL.lastPathComponent
+            let destinationURL = destDir.appendingPathComponent(filename)
+
+            // Skip if already exists in destination
+            if fileManager.fileExists(atPath: destinationURL.path) {
+                #if DEBUG
+                print("⏭️  Skipping \(filename) - already exists")
+                #endif
+                continue
+            }
+
+            // Copy file to destination
+            do {
+                try fileManager.copyItem(at: sourceURL, to: destinationURL)
+                count += 1
+                #if DEBUG
+                print("✅ Migrated: \(filename)")
+                #endif
+            } catch {
+                #if DEBUG
+                print("⚠️  Failed to migrate \(filename): \(error)")
+                #endif
+            }
+        }
+
+        return count
+    }
+
+    /// Export multiple rooms as a single ZIP/folder
+    func exportMultipleRooms(_ rooms: [SavedRoom]) throws -> URL {
+        let exportFolderName = "RoomPlanExport_\(Int(Date().timeIntervalSince1970))"
+        let exportDir = fileManager.temporaryDirectory.appendingPathComponent(exportFolderName, isDirectory: true)
+
+        // Remove existing export folder if present
+        try? fileManager.removeItem(at: exportDir)
+
+        // Create export directory
+        try fileManager.createDirectory(at: exportDir, withIntermediateDirectories: true)
+
+        #if DEBUG
+        print("📦 Exporting \(rooms.count) rooms to: \(exportDir.path)")
+        #endif
+
+        // Export each room to its own subfolder
+        for room in rooms {
+            let roomFolder = exportDir.appendingPathComponent(room.name.replacingOccurrences(of: " ", with: "_"), isDirectory: true)
+            try fileManager.createDirectory(at: roomFolder, withIntermediateDirectories: true)
+
+            // Copy USDZ
+            let usdzURL = getUsdzURL(for: room)
+            if fileManager.fileExists(atPath: usdzURL.path) {
+                try? fileManager.copyItem(at: usdzURL, to: roomFolder.appendingPathComponent("\(room.name).usdz"))
+            }
+
+            // Export SVG floor plan
+            do {
+                let svgURL = try exportToSVG(for: room)
+                try? fileManager.copyItem(at: svgURL, to: roomFolder.appendingPathComponent("\(room.name)_floorplan.svg"))
+            } catch {
+                #if DEBUG
+                print("⚠️  Could not export SVG for \(room.name): \(error)")
+                #endif
+            }
+
+            // Copy PNG floor plan
+            if let floorPlanURL = getFloorPlanURL(for: room), fileManager.fileExists(atPath: floorPlanURL.path) {
+                try? fileManager.copyItem(at: floorPlanURL, to: roomFolder.appendingPathComponent("\(room.name)_floorplan.png"))
+            }
+
+            // Copy metadata
+            let metadataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString).json")
+            if fileManager.fileExists(atPath: metadataURL.path) {
+                try? fileManager.copyItem(at: metadataURL, to: roomFolder.appendingPathComponent("\(room.name)_metadata.json"))
+            }
+
+            // Copy WiFi data
+            let wifiURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_wifi.json")
+            if fileManager.fileExists(atPath: wifiURL.path) {
+                try? fileManager.copyItem(at: wifiURL, to: roomFolder.appendingPathComponent("\(room.name)_wifi.json"))
+            }
+
+            // Copy photos
+            let photos = getPhotos(for: room)
+            if !photos.isEmpty {
+                let photosDir = roomFolder.appendingPathComponent("photos", isDirectory: true)
+                try fileManager.createDirectory(at: photosDir, withIntermediateDirectories: true)
+
+                let roomDirectory = savedRoomsDirectory.appendingPathComponent(room.id.uuidString, isDirectory: true)
+                let photosDirectory = roomDirectory.appendingPathComponent("photos", isDirectory: true)
+
+                let sourceDirectory = fileManager.fileExists(atPath: photosDirectory.path) ? photosDirectory : roomDirectory
+
+                if let photoFiles = try? fileManager.contentsOfDirectory(at: sourceDirectory, includingPropertiesForKeys: nil) {
+                    for (index, photoFile) in photoFiles.filter({ $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "png" }).enumerated() {
+                        let destPhoto = photosDir.appendingPathComponent("photo_\(String(format: "%03d", index + 1)).\(photoFile.pathExtension)")
+                        try? fileManager.copyItem(at: photoFile, to: destPhoto)
+                    }
+                }
+            }
+        }
+
+        #if DEBUG
+        print("✅ Exported \(rooms.count) rooms successfully")
+        #endif
+
+        return exportDir
+    }
+
+    /// Trigger iCloud to upload files by setting metadata attributes
+    private func triggerICloudSync(for urls: [URL]) {
+        #if DEBUG
+        print("☁️  Triggering iCloud sync for \(urls.count) files")
+        #endif
+
+        for url in urls {
+            guard fileManager.fileExists(atPath: url.path) else {
+                #if DEBUG
+                print("⚠️  File doesn't exist for iCloud sync: \(url.lastPathComponent)")
+                #endif
+                continue
+            }
+
+            do {
+                // Set file attributes to trigger iCloud upload
+                var resourceValues = URLResourceValues()
+                resourceValues.isExcludedFromBackup = false
+
+                var mutableURL = url
+                try mutableURL.setResourceValues(resourceValues)
+
+                #if DEBUG
+                print("✅ Set iCloud attributes for: \(url.lastPathComponent)")
+                #endif
+            } catch {
+                #if DEBUG
+                print("⚠️  Failed to set iCloud attributes for \(url.lastPathComponent): \(error)")
+                #endif
+            }
+        }
+    }
 }
 
 // MARK: - SavedRoom Model
 
 struct SavedRoom: Codable, Identifiable {
     let id: UUID
-    let name: String
+    var name: String
     let date: Date
+    var lastModified: Date
+    var notes: String?
     let wallCount: Int
     let doorCount: Int
     let windowCount: Int
@@ -426,6 +884,8 @@ struct SavedRoom: Codable, Identifiable {
     let roomDepth: Float
     let usdzFileName: String
     let floorPlanFileName: String?
+    let roomType: RoomTypeDetector.RoomType
+    let roomTypeConfidence: Float
 
     // Support loading older saves without new fields
     init(from decoder: Decoder) throws {
@@ -433,6 +893,8 @@ struct SavedRoom: Codable, Identifiable {
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         date = try container.decode(Date.self, forKey: .date)
+        lastModified = try container.decodeIfPresent(Date.self, forKey: .lastModified) ?? date
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
         wallCount = try container.decode(Int.self, forKey: .wallCount)
         doorCount = try container.decode(Int.self, forKey: .doorCount)
         windowCount = try container.decode(Int.self, forKey: .windowCount)
@@ -443,14 +905,19 @@ struct SavedRoom: Codable, Identifiable {
         roomDepth = try container.decodeIfPresent(Float.self, forKey: .roomDepth) ?? 0
         usdzFileName = try container.decode(String.self, forKey: .usdzFileName)
         floorPlanFileName = try container.decodeIfPresent(String.self, forKey: .floorPlanFileName)
+        roomType = try container.decodeIfPresent(RoomTypeDetector.RoomType.self, forKey: .roomType) ?? .unknown
+        roomTypeConfidence = try container.decodeIfPresent(Float.self, forKey: .roomTypeConfidence) ?? 0.0
     }
 
     init(id: UUID, name: String, date: Date, wallCount: Int, doorCount: Int, windowCount: Int,
          objectCount: Int, floorArea: Float, roomWidth: Float, roomHeight: Float, roomDepth: Float,
-         usdzFileName: String, floorPlanFileName: String?) {
+         usdzFileName: String, floorPlanFileName: String?,
+         roomType: RoomTypeDetector.RoomType, roomTypeConfidence: Float, notes: String? = nil) {
         self.id = id
         self.name = name
         self.date = date
+        self.lastModified = date
+        self.notes = notes
         self.wallCount = wallCount
         self.doorCount = doorCount
         self.windowCount = windowCount
@@ -461,21 +928,23 @@ struct SavedRoom: Codable, Identifiable {
         self.roomDepth = roomDepth
         self.usdzFileName = usdzFileName
         self.floorPlanFileName = floorPlanFileName
+        self.roomType = roomType
+        self.roomTypeConfidence = roomTypeConfidence
     }
 
     var summary: String {
         var parts: [String] = []
-        if wallCount > 0 { parts.append("\(wallCount) walls") }
-        if doorCount > 0 { parts.append("\(doorCount) doors") }
-        if windowCount > 0 { parts.append("\(windowCount) windows") }
-        if objectCount > 0 { parts.append("\(objectCount) objects") }
-        if floorArea > 0 { parts.append(String(format: "%.1f m²", floorArea)) }
-        return parts.isEmpty ? "Empty scan" : parts.joined(separator: ", ")
+        if wallCount > 0 { parts.append(L10n.SavedRooms.walls.localized(wallCount)) }
+        if doorCount > 0 { parts.append(L10n.SavedRooms.doors.localized(doorCount)) }
+        if windowCount > 0 { parts.append(L10n.SavedRooms.windows.localized(windowCount)) }
+        if objectCount > 0 { parts.append(L10n.SavedRooms.objects.localized(objectCount)) }
+        if floorArea > 0 { parts.append(L10n.SavedRooms.area.localized(floorArea)) }
+        return parts.isEmpty ? L10n.Stats.empty.localized : parts.joined(separator: ", ")
     }
 
     var dimensionsSummary: String {
         if roomWidth > 0 && roomDepth > 0 {
-            return String(format: "%.1f × %.1f m", roomWidth, roomDepth)
+            return L10n.SavedRooms.dimensions.localized(roomWidth, roomDepth)
         }
         return ""
     }

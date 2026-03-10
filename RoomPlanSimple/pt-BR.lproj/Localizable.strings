@@ -58,10 +58,24 @@
 "scan.saving" = "Salvando...";
 "scan.autoSaved" = "Salvo automaticamente";
 "scan.saveSuccess" = "Ambiente salvo com sucesso!";
+"scan.started" = "Digitalização iniciada";
+"scan.failed" = "Digitalização falhou";
+"scan.endedWithError" = "Digitalização terminou com erro";
+"scan.noElementsDetected" = "Nenhum elemento detectado";
+"scan.photoCaptured" = "Foto capturada";
+"scan.roomSaved" = "Ambiente Salvo";
+"scan.roomSavedMessage" = "\"%@\" salvo com sucesso.\n\n%@";
 "scan.error.title" = "Erro na Digitalização";
 "scan.error.sessionFailed" = "Falha na sessão de digitalização";
 "scan.error.exportFailed" = "Falha ao exportar modelo do ambiente";
 "scan.error.saveFailed" = "Falha ao salvar ambiente";
+"scan.error.noData" = "Nenhum dado de digitalização disponível";
+"scan.error.deviceNotSupported" = "Este dispositivo não suporta digitalização de ambientes";
+"scan.error.completeScanFirst" = "Complete uma digitalização antes de exportar.";
+"scan.error.tryDifferentFormat" = "Tente exportar novamente ou use um formato diferente.";
+"scan.error.adequateLighting" = "Certifique-se de ter iluminação adequada e tente novamente.";
+"scan.error.slowerMovements" = "Tente digitalizar o ambiente com movimentos mais lentos.";
+"scan.error.requiresLidar" = "RoomPlan requer iPhone 12 Pro ou posterior, ou iPad Pro com LiDAR.";
 
 // MARK: - Saved Rooms
 "savedRooms.title" = "Ambientes Salvos";
@@ -80,6 +94,9 @@
 "savedRooms.objects" = "%d objetos";
 "savedRooms.area" = "%.1f m²";
 "savedRooms.dimensions" = "%.1f × %.1f m";
+"savedRooms.roomNamePlaceholder" = "Nome do ambiente";
+"savedRooms.saved" = "Salvo";
+"savedRooms.savedCount" = "Salvos (%d)";
 "savedRooms.selectRooms" = "Selecionar";
 "savedRooms.selectedCount" = "%d selecionado(s)";
 "savedRooms.deleteSelected" = "Excluir";
@@ -115,10 +132,15 @@
 "export.title" = "Exportar Ambiente";
 "export.format" = "Formato";
 "export.usdz" = "USDZ (Modelo 3D)";
+"export.usdz.parametric" = "USDZ Paramétrico";
+"export.usdz.textured" = "USDZ Texturizado";
+"export.usdz.mesh" = "USDZ Malha";
 "export.obj" = "OBJ (Modelo 3D)";
 "export.stl" = "STL (Impressão 3D)";
 "export.dxf" = "DXF (Planta CAD)";
 "export.svg" = "SVG (Planta Vetorial)";
+"export.ifc" = "IFC (Modelo BIM)";
+"export.formatDesc.ifc" = "Industry Foundation Classes — padrão aberto BIM";
 "export.png" = "PNG (Imagem da Planta)";
 "export.chooseExport" = "Escolher exportação";
 "export.floorPlanImage" = "Imagem da planta baixa";
@@ -127,6 +149,25 @@
 "export.success" = "Exportado com sucesso";
 "export.error" = "Falha na exportação";
 "export.share" = "Compartilhar %@";
+"export.saveRoom" = "Salvar Ambiente";
+"export.viewFloorPlan" = "Ver Planta Baixa";
+"export.chooseFormat" = "Escolher formato de exportação";
+"export.toICloud" = "Exportar para iCloud Drive";
+"export.allToICloud" = "Exportar Tudo para iCloud Drive";
+"export.toICloudMessage" = "Todos os ambientes salvos serão copiados para o iCloud Drive onde ficarão visíveis no Finder do Mac.\n\nLocalização: iCloud Drive → RoomPlanExport";
+"export.copyingToICloud" = "Copiando ambientes para o iCloud Drive";
+"export.iCloudComplete" = "Exportação Concluída";
+"export.iCloudCompleteMessage" = "%d ambientes exportados para:\niCloud Drive → RoomPlanExport\n\nOs arquivos serão sincronizados com seu Mac em breve.";
+"export.tryAgain" = "Tentar Novamente";
+"export.pngImage" = "Imagem PNG";
+"export.svgVector" = "SVG (Gráficos Vetoriais)";
+"export.dxfCad" = "DXF (AutoCAD/CAD)";
+"export.formatDesc.parametric" = "Geometria limpa com formas de móveis";
+"export.formatDesc.textured" = "Inclui texturas de superfície capturadas";
+"export.formatDesc.mesh" = "Dados de malha 3D brutos";
+"export.formatDesc.obj" = "Formato universal para Blender, 3DS Max, Maya";
+"export.formatDesc.stl" = "Formato padrão para impressão 3D";
+"export.complete" = "Exportação completa (Todos os dados)";
 
 // MARK: - Settings
 "settings.title" = "Configurações";
@@ -189,6 +230,10 @@
 "wifi.fair" = "Regular";
 "wifi.poor" = "Fraco";
 "wifi.noData" = "Nenhum dado WiFi coletado";
+"wifi.trackingTitle" = "Rastreamento de Sinal WiFi";
+"wifi.trackingMessage" = "Para rastrear a intensidade do sinal WiFi durante a digitalização, este app precisa de permissão de localização. Estes dados são armazenados localmente e não são compartilhados.";
+"wifi.enable" = "Ativar";
+"wifi.samples" = "%d amostras";
 
 // MARK: - Onboarding
 "onboarding.welcome" = "Bem-vindo ao RoomPlan";
@@ -209,3 +254,74 @@
 "stats.objectCount" = "Quantidade de Objetos";
 "stats.floorArea" = "Área do Piso";
 "stats.roomDimensions" = "Dimensões do Ambiente";
+
+// MARK: - Room Types
+"roomType.kitchen" = "Cozinha";
+"roomType.bedroom" = "Quarto";
+"roomType.bathroom" = "Banheiro";
+"roomType.livingRoom" = "Sala de Estar";
+"roomType.diningRoom" = "Sala de Jantar";
+"roomType.office" = "Escritório";
+"roomType.unknown" = "Desconhecido";
+"export.complete" = "Exportação completa (Todos os dados)";
+
+// MARK: - Ajuda Conteúdo
+"help.tips" = "Dicas Pro";
+"help.gettingStarted.content" = "Este app usa o scanner LiDAR do seu dispositivo para criar modelos 3D precisos de ambientes.\n\nRequisitos para Digitalizar:\n• iPhone 12 Pro ou posterior\n• iPad Pro (2020 ou posterior)\n• iOS 16.0 ou posterior\n\nNota: Você pode visualizar ambientes salvos em qualquer dispositivo, mesmo sem LiDAR! Use iCloud para sincronizar ambientes entre dispositivos.";
+"help.icloudSetup.content" = "Ative a sincronização iCloud para acessar seus ambientes salvos em todos os seus dispositivos - mesmo aqueles sem LiDAR!\n\nComo Ativar:\n1. Vá para Configurações (ícone de engrenagem)\n2. Ative \"Sincronização iCloud\"\n3. Seus ambientes serão sincronizados automaticamente\n\nRequisitos:\n• Conectado ao iCloud nas Configurações do iOS\n• iCloud Drive ativado\n• Conexão com a Internet\n\nBenefícios:\n• Acesse digitalizações de dispositivos sem LiDAR\n• Backup automático de suas digitalizações\n• Compartilhe ambientes entre iPhone e iPad\n• Visualize modelos 3D em qualquer lugar";
+"help.scanning.content" = "1. Toque em \"Iniciar Nova Digitalização\" na tela inicial\n2. Aponte seu dispositivo para um canto do ambiente\n3. Mova-se lentamente ao longo de cada parede, mantendo a parede à vista\n4. Digitalize todas as paredes, janelas, portas e aberturas\n5. Inclua móveis e objetos que deseja capturar\n6. Observe a pré-visualização inferior para ver seu progresso\n7. Toque em \"Concluído\" quando o ambiente estiver completo\n\nDicas para Melhores Resultados:\n• Mantenha seu dispositivo na vertical\n• Mova-se lenta e constantemente\n• Garanta boa iluminação\n• Digitalize cada parede pelo menos uma vez\n• Aproxime-se dos detalhes que deseja capturar";
+"help.exporting.content" = "Após completar uma digitalização, você pode exportá-la em múltiplos formatos:\n\nFormatos de Modelo 3D:\n• USDZ - Melhor para dispositivos Apple, AR Quick Look\n• OBJ - Formato 3D universal para software de modelagem\n• STL - Para aplicações de impressão 3D\n\nFormatos de Planta Baixa:\n• PNG - Imagem para compartilhamento rápido\n• SVG - Formato vetorial para design gráfico\n• DXF - Formato CAD para arquitetos/designers\n\nPara exportar:\n1. Complete sua digitalização ou abra um ambiente salvo\n2. Toque no botão exportar\n3. Escolha seu formato\n4. Compartilhe via AirDrop, email ou salve em Arquivos\n\nTodas as medidas estão incluídas nos arquivos exportados.";
+"help.feature.3d.title" = "Captura 3D de Ambiente";
+"help.feature.3d.description" = "Crie modelos 3D precisos com tecnologia LiDAR. O app detecta automaticamente paredes, janelas, portas e móveis.";
+"help.feature.wifi.title" = "Mapa de Calor WiFi";
+"help.feature.wifi.description" = "Ative o rastreamento WiFi durante a digitalização para criar um mapa de calor de intensidade de sinal. Perfeito para planejar a localização do roteador. Requer permissão de localização.";
+"help.feature.photo.title" = "Captura de Fotos";
+"help.feature.photo.description" = "Tire fotos durante a digitalização para documentar o espaço. As fotos são salvas com sua digitalização e exibidas na planta baixa.";
+"help.feature.export.title" = "Múltiplos Formatos de Exportação";
+"help.feature.export.description" = "Exporte suas digitalizações em vários formatos:\n• USDZ - Modelo 3D para AR/Visualização\n• OBJ - Modelo 3D para software CAD\n• STL - Modelo 3D para impressão 3D\n• DXF - Planta para CAD\n• SVG - Planta vetorial\n• PNG - Imagem da planta";
+"help.feature.icloud.title" = "Sincronização iCloud (Opcional)";
+"help.feature.icloud.description" = "Ative nas Configurações para sincronizar suas digitalizações em todos os seus dispositivos. Quando ativado, as digitalizações são armazenadas no iCloud Drive e disponíveis em todos os dispositivos conectados com seu ID Apple.";
+"help.tip.lighting.title" = "Iluminação é Fundamental";
+"help.tip.lighting.description" = "Digitalize em boas condições de iluminação. Luz natural do dia ou iluminação interna brilhante funciona melhor. Evite áreas muito escuras ou muito claras.";
+"help.tip.slow.title" = "Devagar e Sempre";
+"help.tip.slow.description" = "Mova-se lenta e suavemente. Movimentos rápidos ou tremores podem afetar a qualidade da digitalização. Tome seu tempo para melhores resultados.";
+"help.tip.retry.title" = "Digitalize Múltiplas Vezes";
+"help.tip.retry.description" = "Se não estiver satisfeito com a primeira digitalização, tente novamente! Cada ambiente é diferente e às vezes leva algumas tentativas para obter um resultado perfeito.";
+"help.tip.save.title" = "Salve Tudo";
+"help.tip.save.description" = "Ative o salvamento automático nas Configurações para nunca perder uma digitalização. Você sempre pode deletar digitalizações indesejadas mais tarde.";
+"help.tip.measure.title" = "Verifique as Medidas";
+"help.tip.measure.description" = "Após digitalizar, toque para ver a planta baixa e verifique se as medidas parecem corretas. O app mostra dimensões em metros ou pés.";
+"help.trouble.notStarting.title" = "Digitalização Não Inicia";
+"help.trouble.notStarting.description" = "Certifique-se de ter um dispositivo compatível com LiDAR (iPhone 12 Pro ou posterior, iPad Pro 2020+). Verifique se as permissões de câmera foram concedidas em Configurações → Privacidade → Câmera.";
+"help.trouble.poorQuality.title" = "Qualidade de Digitalização Ruim";
+"help.trouble.poorQuality.description" = "Tente estas soluções:\n• Melhore a iluminação do ambiente\n• Mova-se mais devagar\n• Aproxime-se mais das paredes e objetos\n• Digitalize cada parede múltiplas vezes\n• Limpe obstruções da lente da câmera";
+"help.trouble.disappeared.title" = "Digitalizações Desaparecidas";
+"help.trouble.disappeared.description" = "Se as digitalizações estiverem faltando após atualizar o app:\n• Verifique Configurações → Sincronização iCloud\n• As digitalizações agora são armazenadas em Suporte de Aplicativo\n• Digitalizações antigas podem estar na pasta Documentos";
+"help.trouble.wifi.title" = "Mapa de Calor WiFi Não Funciona";
+"help.trouble.wifi.description" = "O rastreamento WiFi requer:\n• Permissão de localização (Configurações → Privacidade → Localização)\n• WiFi ativado no dispositivo\n• Conectado a uma rede WiFi\n• Ativado na tela de digitalização ou em Configurações";
+
+// MARK: - Object Types
+"object.bed" = "Cama";
+"object.toilet" = "Vaso Sanitário";
+"object.bathtub" = "Banheira";
+"object.sink" = "Pia";
+"object.refrigerator" = "Geladeira";
+"object.fridge" = "Geladeira";
+"object.stove" = "Fogão";
+"object.oven" = "Forno";
+"object.dishwasher" = "Lava-louças";
+"object.sofa" = "Sofá";
+"object.television" = "Televisão";
+"object.tv" = "TV";
+"object.fireplace" = "Lareira";
+"object.table" = "Mesa";
+"object.chair" = "Cadeira";
+"object.storage" = "Armário";
+"object.washerDryer" = "Lavadora/Secadora";
+"object.washer" = "Lavadora";
+"object.stairs" = "Escadas";
+"object.unknown" = "Objeto";
+"object.unknownObject" = "Objeto Desconhecido";
+
+// MARK: - Floor Plan Export
+"floorPlan.export" = "Exportar Planta Baixa";

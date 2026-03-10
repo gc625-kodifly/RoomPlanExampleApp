@@ -71,6 +71,9 @@ final class WiFiSignalManager: NSObject, ObservableObject {
 
     private let samplingInterval: TimeInterval = 2.0  // Sample every 2 seconds
 
+    // Callback for new samples (for visualization)
+    var onSampleCaptured: ((WiFiSample) -> Void)?
+
     // MARK: - Initialization
 
     override init() {
@@ -180,6 +183,9 @@ final class WiFiSignalManager: NSObject, ObservableObject {
                     )
                     self.samples.append(sample)
                     self.sampleCount = self.samples.count
+
+                    // Notify callback for AR visualization
+                    self.onSampleCaptured?(sample)
                 }
             }
         }
@@ -313,7 +319,7 @@ extension Array where Element == WiFiSample {
 
     /// Summary string
     var summary: String {
-        guard !isEmpty else { return "No WiFi data" }
+        guard !isEmpty else { return L10n.WiFi.noData.localized }
 
         var parts: [String] = []
         parts.append("\(count) samples")

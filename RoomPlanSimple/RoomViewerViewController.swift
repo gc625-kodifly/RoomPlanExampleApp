@@ -223,30 +223,95 @@ class RoomViewerViewController: UIViewController {
     }
 
     private func showPhotos() {
-        // TODO: Implement photos gallery
-        let label = UILabel()
-        label.text = L10n.Viewer.photosPlaceholder.localized
-        label.textAlignment = .center
-        label.textColor = .secondaryLabel
-        label.frame = containerView.bounds
-        label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        let photos = RoomStorageManager.shared.getPhotos(for: savedRoom)
+
+        if photos.isEmpty {
+            showMessage(L10n.Viewer.photosPlaceholder.localized)
+            return
+        }
+
+        // Create collection view for photos
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        layout.minimumInteritemSpacing = 8
+        layout.minimumLineSpacing = 8
+        layout.sectionInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.backgroundColor = .systemBackground
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(PhotoCell.self, forCellWithReuseIdentifier: "PhotoCell")
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Store photos for collection view
+        objc_setAssociatedObject(collectionView, photosAssociatedKey, photos, .OBJC_ASSOCIATION_RETAIN)
 
         let vc = UIViewController()
         vc.view.backgroundColor = .systemBackground
-        vc.view.addSubview(label)
+        vc.view.addSubview(collectionView)
+
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: vc.view.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: vc.view.bottomAnchor)
+        ])
 
         addChild(vc)
         containerView.addSubview(vc.view)
+        vc.view.frame = containerView.bounds
+        vc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         vc.didMove(toParent: self)
-
     }
 
     private func showWiFiHeatmap() {
         if wifiSamples.isEmpty {
             showMessage(L10n.Viewer.noWifiData.localized)
-        } else {
-            showMessage(L10n.Viewer.wifiSamplesCount.localized(wifiSamples.count))
+            return
         }
+
+        // Load floor plan data to display WiFi heatmap
+        guard let floorPlanData = RoomStorageManager.shared.loadFloorPlanData(for: savedRoom) else {
+            showMessage(L10n.Viewer.noFloorPlan.localized)
+            return
+        }
+
+        // Create FloorPlanView with WiFi samples
+        let floorPlanView = FloorPlanView(frame: containerView.bounds)
+        floorPlanView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        floorPlanView.configure(with: floorPlanData, wifiSamples: wifiSamples)
+        floorPlanView.showWifiHeatmap = true
+        floorPlanView.backgroundColor = .systemBackground
+
+        // Wrap in scroll view for zooming
+        let scrollView = UIScrollView(frame: containerView.bounds)
+        scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        scrollView.minimumZoomScale = 0.5
+        scrollView.maximumZoomScale = 4.0
+        scrollView.delegate = self
+        scrollView.showsVerticalScrollIndicator = true
+        scrollView.showsHorizontalScrollIndicator = true
+
+        floorPlanView.tag = 100 // Tag for zoom reference
+        scrollView.addSubview(floorPlanView)
+        containerView.addSubview(scrollView)
+
+        // Add hint label
+        let hintLabel = UILabel()
+        hintLabel.text = L10n.Viewer.wifiSamplesCount.localized(wifiSamples.count)
+        hintLabel.font = .systemFont(ofSize: 12)
+        hintLabel.textColor = .secondaryLabel
+        hintLabel.textAlignment = .center
+        hintLabel.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.8)
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(hintLabel)
+
+        NSLayoutConstraint.activate([
+            hintLabel.bottomAnchor.constraint(equalTo: scrollView.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            hintLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            hintLabel.widthAnchor.constraint(lessThanOrEqualTo: scrollView.widthAnchor, constant: -32)
+        ])
     }
 
     private func showMessage(_ message: String) {
@@ -306,6 +371,14 @@ class RoomViewerViewController: UIViewController {
             self?.shareFloorPlanPNG()
         })
 
+        alert.addAction(UIAlertAction(title: L10n.Export.ifc.localized, style: .default) { [weak self] _ in
+            self?.shareIFC()
+        })
+
+        alert.addAction(UIAlertAction(title: L10n.Export.complete.localized, style: .default) { [weak self] _ in
+            self?.shareCompleteRoom()
+        })
+
         alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
 
         if let popover = alert.popoverPresentationController {
@@ -351,6 +424,226 @@ class RoomViewerViewController: UIViewController {
         let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
         activityVC.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItem
         present(activityVC, animated: true)
+    }
+
+    private func shareIFC() {
+        do {
+            let ifcURL = try RoomStorageManager.shared.exportToIFC(for: savedRoom)
+            let activityVC = UIActivityViewController(activityItems: [ifcURL], applicationActivities: nil)
+            activityVC.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItem
+            present(activityVC, animated: true)
+        } catch {
+            showMessage(L10n.Export.error.localized)
+            print("IFC export failed: \(error)")
+        }
+    }
+
+    private func shareCompleteRoom() {
+        do {
+            let exportURL = try RoomStorageManager.shared.exportRoomAsZIP(for: savedRoom)
+            let activityVC = UIActivityViewController(activityItems: [exportURL], applicationActivities: nil)
+            activityVC.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItem
+            present(activityVC, animated: true)
+        } catch {
+            showMessage(L10n.Export.error.localized)
+            print("Complete export failed: \(error)")
+        }
+    }
+}
+
+// MARK: - UICollectionViewDelegate & DataSource
+
+private let photosAssociatedKey = UnsafeRawPointer(bitPattern: "photosKey".hashValue)!
+
+extension RoomViewerViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        guard let photos = objc_getAssociatedObject(collectionView, photosAssociatedKey) as? [UIImage] else {
+            return 0
+        }
+        return photos.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoCell", for: indexPath) as! PhotoCell
+
+        if let photos = objc_getAssociatedObject(collectionView, photosAssociatedKey) as? [UIImage] {
+            cell.configure(with: photos[indexPath.item])
+        }
+
+        return cell
+    }
+
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let padding: CGFloat = 8
+        let columns: CGFloat = 2
+        let totalPadding = padding * (columns + 1)
+        let itemWidth = (collectionView.bounds.width - totalPadding) / columns
+        return CGSize(width: itemWidth, height: itemWidth)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        guard let photos = objc_getAssociatedObject(collectionView, photosAssociatedKey) as? [UIImage] else {
+            return
+        }
+
+        // Show full-screen image viewer
+        let fullScreenVC = PhotoViewerViewController(images: photos, startingIndex: indexPath.item)
+        fullScreenVC.modalPresentationStyle = .overFullScreen
+        present(fullScreenVC, animated: true)
+    }
+}
+
+// MARK: - PhotoCell
+
+private class PhotoCell: UICollectionViewCell {
+    private let imageView = UIImageView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupUI() {
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 8
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(imageView)
+
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        ])
+    }
+
+    func configure(with image: UIImage) {
+        imageView.image = image
+    }
+}
+
+// MARK: - PhotoViewerViewController
+
+private class PhotoViewerViewController: UIViewController {
+    private let images: [UIImage]
+    private var currentIndex: Int
+    private let scrollView = UIScrollView()
+    private let imageView = UIImageView()
+    private let closeButton = UIButton(type: .system)
+    private let pageLabel = UILabel()
+
+    init(images: [UIImage], startingIndex: Int) {
+        self.images = images
+        self.currentIndex = startingIndex
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+        showImage(at: currentIndex)
+    }
+
+    private func setupUI() {
+        view.backgroundColor = .black
+
+        // Scroll view for zooming
+        scrollView.delegate = self
+        scrollView.minimumZoomScale = 1.0
+        scrollView.maximumZoomScale = 4.0
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scrollView)
+
+        // Image view
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(imageView)
+
+        // Close button
+        closeButton.setTitle("✕", for: .normal)
+        closeButton.setTitleColor(.white, for: .normal)
+        closeButton.titleLabel?.font = .systemFont(ofSize: 24, weight: .medium)
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(closeButton)
+
+        // Page label
+        pageLabel.textColor = .white
+        pageLabel.textAlignment = .center
+        pageLabel.font = .systemFont(ofSize: 14)
+        pageLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pageLabel)
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            imageView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            imageView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            imageView.heightAnchor.constraint(equalTo: scrollView.heightAnchor),
+
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            closeButton.widthAnchor.constraint(equalToConstant: 44),
+            closeButton.heightAnchor.constraint(equalToConstant: 44),
+
+            pageLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            pageLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+        ])
+
+        // Add swipe gestures
+        let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeLeft.direction = .left
+        view.addGestureRecognizer(swipeLeft)
+
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeRight.direction = .right
+        view.addGestureRecognizer(swipeRight)
+    }
+
+    private func showImage(at index: Int) {
+        guard index >= 0, index < images.count else { return }
+        currentIndex = index
+        imageView.image = images[index]
+        pageLabel.text = "\(index + 1) / \(images.count)"
+        scrollView.zoomScale = 1.0
+    }
+
+    @objc private func closeTapped() {
+        dismiss(animated: true)
+    }
+
+    @objc private func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
+        if gesture.direction == .left {
+            if currentIndex < images.count - 1 {
+                showImage(at: currentIndex + 1)
+            }
+        } else if gesture.direction == .right {
+            if currentIndex > 0 {
+                showImage(at: currentIndex - 1)
+            }
+        }
+    }
+}
+
+extension PhotoViewerViewController: UIScrollViewDelegate {
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        return imageView
     }
 }
 

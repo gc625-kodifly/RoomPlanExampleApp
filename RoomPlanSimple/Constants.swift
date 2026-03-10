@@ -41,22 +41,22 @@ enum AppConstants {
         static let fileExtension = "usdz"
     }
 
-    // MARK: - Strings
+    // MARK: - Strings (Localized)
 
     enum Strings {
-        static let exportTitle = "Export Room Scan"
-        static let exportMessage = "Choose export format:"
-        static let errorTitle = "Error"
-        static let cancelButton = "Cancel"
-        static let okButton = "OK"
-        static let tryAgainButton = "Try Again"
-        static let scanningStarted = "Scanning started"
-        static let scanningFailed = "Scanning failed"
-        static let scanEndedWithError = "Scan ended with error"
-        static let noElementsDetected = "No elements detected"
-        static let unsupportedDeviceTitle = "Unsupported Device"
-        static let unsupportedDeviceMessage = "This device doesn't have a LiDAR scanner. RoomPlan requires iPhone 12 Pro or later, or iPad Pro with LiDAR."
-        static let deviceNotSupported = "Device Not Supported"
-        static let unableToStartScanning = "Unable to start scanning. Please restart the app."
+        static var exportTitle: String { L10n.Export.title.localized }
+        static var exportMessage: String { L10n.Export.chooseFormat.localized }
+        static var errorTitle: String { L10n.Common.error.localized }
+        static var cancelButton: String { L10n.Common.cancel.localized }
+        static var okButton: String { L10n.Common.ok.localized }
+        static var tryAgainButton: String { L10n.Export.tryAgain.localized }
+        static var scanningStarted: String { L10n.Scan.started.localized }
+        static var scanningFailed: String { L10n.Scan.failed.localized }
+        static var scanEndedWithError: String { L10n.Scan.endedWithError.localized }
+        static var noElementsDetected: String { L10n.Scan.noElementsDetected.localized }
+        static var unsupportedDeviceTitle: String { L10n.Alert.unsupportedDeviceTitle.localized }
+        static var unsupportedDeviceMessage: String { L10n.Alert.unsupportedDeviceMessage.localized }
+        static var deviceNotSupported: String { L10n.Scan.Error.deviceNotSupported.localized }
+        static var unableToStartScanning: String { L10n.Alert.scanningUnavailable.localized }
     }
 }

@@ -58,10 +58,24 @@
 "scan.saving" = "Сохранение...";
 "scan.autoSaved" = "Автосохранение";
 "scan.saveSuccess" = "Комната сохранена!";
+"scan.started" = "Сканирование началось";
+"scan.failed" = "Сканирование не удалось";
+"scan.endedWithError" = "Сканирование завершилось с ошибкой";
+"scan.noElementsDetected" = "Элементы не обнаружены";
+"scan.photoCaptured" = "Фото сохранено";
+"scan.roomSaved" = "Комната сохранена";
+"scan.roomSavedMessage" = "\"%@\" успешно сохранена.\n\n%@";
 "scan.error.title" = "Ошибка сканирования";
 "scan.error.sessionFailed" = "Сбой сканирования";
 "scan.error.exportFailed" = "Ошибка экспорта";
 "scan.error.saveFailed" = "Ошибка сохранения";
+"scan.error.noData" = "Нет данных сканирования";
+"scan.error.deviceNotSupported" = "Это устройство не поддерживает сканирование комнат";
+"scan.error.completeScanFirst" = "Сначала завершите сканирование.";
+"scan.error.tryDifferentFormat" = "Попробуйте экспортировать снова или выберите другой формат.";
+"scan.error.adequateLighting" = "Обеспечьте достаточное освещение и попробуйте снова.";
+"scan.error.slowerMovements" = "Попробуйте сканировать медленнее.";
+"scan.error.requiresLidar" = "RoomPlan требует iPhone 12 Pro или новее, или iPad Pro с LiDAR.";
 
 // MARK: - Saved Rooms
 "savedRooms.title" = "Сохранённые комнаты";
@@ -80,6 +94,9 @@
 "savedRooms.objects" = "Объекты: %d";
 "savedRooms.area" = "%.1f м²";
 "savedRooms.dimensions" = "%.1f × %.1f м";
+"savedRooms.roomNamePlaceholder" = "Название комнаты";
+"savedRooms.saved" = "Сохранено";
+"savedRooms.savedCount" = "Сохранено (%d)";
 "savedRooms.selectRooms" = "Выбрать";
 "savedRooms.selectedCount" = "выбрано: %d";
 "savedRooms.deleteSelected" = "Удалить";
@@ -115,10 +132,15 @@
 "export.title" = "Экспорт комнаты";
 "export.format" = "Формат";
 "export.usdz" = "USDZ (3D модель)";
+"export.usdz.parametric" = "USDZ Параметрический";
+"export.usdz.textured" = "USDZ Текстурированный";
+"export.usdz.mesh" = "USDZ Сетка";
 "export.obj" = "OBJ (3D модель)";
 "export.stl" = "STL (3D печать)";
 "export.dxf" = "DXF (CAD план)";
 "export.svg" = "SVG (векторный план)";
+"export.ifc" = "IFC (BIM модель)";
+"export.formatDesc.ifc" = "Industry Foundation Classes — открытый стандарт BIM";
 "export.png" = "PNG (изображение)";
 "export.chooseExport" = "Выберите экспорт";
 "export.floorPlanImage" = "Изображение плана этажа";
@@ -127,6 +149,25 @@
 "export.success" = "Экспорт завершён";
 "export.error" = "Ошибка экспорта";
 "export.share" = "Поделиться %@";
+"export.saveRoom" = "Сохранить комнату";
+"export.viewFloorPlan" = "Просмотр плана этажа";
+"export.chooseFormat" = "Выберите формат экспорта";
+"export.toICloud" = "Экспорт в iCloud Drive";
+"export.allToICloud" = "Экспортировать всё в iCloud Drive";
+"export.toICloudMessage" = "Все сохранённые комнаты будут скопированы в iCloud Drive и будут видны в Finder на Mac.\n\nРасположение: iCloud Drive → RoomPlanExport";
+"export.copyingToICloud" = "Копирование комнат в iCloud Drive";
+"export.iCloudComplete" = "Экспорт завершён";
+"export.iCloudCompleteMessage" = "Экспортировано комнат: %d в:\niCloud Drive → RoomPlanExport\n\nФайлы скоро синхронизируются с вашим Mac.";
+"export.tryAgain" = "Повторить";
+"export.pngImage" = "Изображение PNG";
+"export.svgVector" = "SVG (Векторная графика)";
+"export.dxfCad" = "DXF (AutoCAD/CAD)";
+"export.formatDesc.parametric" = "Чистая геометрия с формами мебели";
+"export.formatDesc.textured" = "Включает захваченные текстуры поверхностей";
+"export.formatDesc.mesh" = "Необработанные данные 3D-сетки";
+"export.formatDesc.obj" = "Универсальный формат для Blender, 3DS Max, Maya";
+"export.formatDesc.stl" = "Стандартный формат для 3D-печати";
+"export.complete" = "Полный экспорт (Все данные)";
 
 // MARK: - Settings
 "settings.title" = "Настройки";
@@ -189,6 +230,10 @@
 "wifi.fair" = "Удовлетворительно";
 "wifi.poor" = "Слабо";
 "wifi.noData" = "Нет данных WiFi";
+"wifi.trackingTitle" = "Отслеживание сигнала WiFi";
+"wifi.trackingMessage" = "Для отслеживания силы сигнала WiFi во время сканирования приложению требуется разрешение на определение местоположения. Эти данные хранятся локально и не передаются.";
+"wifi.enable" = "Включить";
+"wifi.samples" = "%d образцов";
 
 // MARK: - Onboarding
 "onboarding.welcome" = "Добро пожаловать в RoomPlan";
@@ -209,3 +254,74 @@
 "stats.objectCount" = "Количество объектов";
 "stats.floorArea" = "Площадь пола";
 "stats.roomDimensions" = "Размеры комнаты";
+
+// MARK: - Room Types
+"roomType.kitchen" = "Кухня";
+"roomType.bedroom" = "Спальня";
+"roomType.bathroom" = "Ванная";
+"roomType.livingRoom" = "Гостиная";
+"roomType.diningRoom" = "Столовая";
+"roomType.office" = "Офис";
+"roomType.unknown" = "Неизвестно";
+"export.complete" = "Полный экспорт (Все данные)";
+
+// MARK: - Справка Содержание
+"help.tips" = "Профессиональные советы";
+"help.gettingStarted.content" = "Это приложение использует LiDAR-сканер вашего устройства для создания точных 3D-моделей комнат.\n\nТребования для сканирования:\n• iPhone 12 Pro или новее\n• iPad Pro (2020 или новее)\n• iOS 16.0 или новее\n\nПримечание: Вы можете просматривать сохраненные комнаты на любом устройстве, даже без LiDAR! Используйте iCloud для синхронизации комнат между устройствами.";
+"help.icloudSetup.content" = "Включите синхронизацию iCloud для доступа к сохраненным комнатам на всех ваших устройствах - даже тех, у которых нет LiDAR!\n\nКак включить:\n1. Перейдите в Настройки (значок шестеренки)\n2. Включите \"Синхронизация iCloud\"\n3. Ваши комнаты будут автоматически синхронизированы\n\nТребования:\n• Вход в iCloud в настройках iOS\n• iCloud Drive включен\n• Подключение к Интернету\n\nПреимущества:\n• Доступ к сканированиям с устройств без LiDAR\n• Автоматическое резервное копирование сканов\n• Обмен комнатами между iPhone и iPad\n• Просмотр 3D-моделей в любом месте";
+"help.scanning.content" = "1. Нажмите \"Начать новое сканирование\" на главном экране\n2. Направьте устройство на угол комнаты\n3. Медленно двигайтесь вдоль каждой стены, держа стену в поле зрения\n4. Отсканируйте все стены, окна, двери и проемы\n5. Включите мебель и объекты, которые хотите захватить\n6. Наблюдайте за предпросмотром внизу, чтобы видеть прогресс\n7. Нажмите \"Готово\", когда комната будет выглядеть полной\n\nСоветы для лучших результатов:\n• Держите устройство вертикально\n• Двигайтесь медленно и равномерно\n• Обеспечьте хорошее освещение\n• Отсканируйте каждую стену хотя бы раз\n• Приближайтесь к деталям, которые хотите захватить";
+"help.exporting.content" = "После завершения сканирования вы можете экспортировать его в нескольких форматах:\n\nФорматы 3D-модели:\n• USDZ - Лучше для устройств Apple, AR Quick Look\n• OBJ - Универсальный 3D формат для ПО моделирования\n• STL - Для приложений 3D-печати\n\nФорматы плана этажа:\n• PNG - Изображение для быстрого обмена\n• SVG - Векторный формат для графического дизайна\n• DXF - CAD формат для архитекторов/дизайнеров\n\nДля экспорта:\n1. Завершите сканирование или откройте сохраненную комнату\n2. Нажмите кнопку экспорта\n3. Выберите формат\n4. Поделитесь через AirDrop, email или сохраните в Файлы\n\nВсе измерения включены в экспортированные файлы.";
+"help.feature.3d.title" = "3D захват комнаты";
+"help.feature.3d.description" = "Создавайте точные 3D модели с технологией LiDAR. Приложение автоматически определяет стены, окна, двери и мебель.";
+"help.feature.wifi.title" = "WiFi тепловая карта";
+"help.feature.wifi.description" = "Включите отслеживание WiFi во время сканирования для создания тепловой карты силы сигнала. Идеально для планирования размещения роутера. Требуется разрешение на определение местоположения.";
+"help.feature.photo.title" = "Захват фото";
+"help.feature.photo.description" = "Делайте фотографии во время сканирования для документирования пространства. Фотографии сохраняются вместе со сканом и отображаются на плане этажа.";
+"help.feature.export.title" = "Множественные форматы экспорта";
+"help.feature.export.description" = "Экспортируйте сканирования в различных форматах:\n• USDZ - 3D модель для AR/Просмотра\n• OBJ - 3D модель для CAD ПО\n• STL - 3D модель для 3D-печати\n• DXF - План для CAD\n• SVG - Векторный план\n• PNG - Изображение плана";
+"help.feature.icloud.title" = "Синхронизация iCloud (опционально)";
+"help.feature.icloud.description" = "Включите в Настройках для синхронизации сканов на всех устройствах. При включении сканы хранятся в iCloud Drive и доступны на всех устройствах, подключенных к вашему Apple ID.";
+"help.tip.lighting.title" = "Освещение - это ключ";
+"help.tip.lighting.description" = "Сканируйте при хорошем освещении. Лучше всего работает естественный дневной свет или яркое внутреннее освещение. Избегайте очень темных или очень ярких областей.";
+"help.tip.slow.title" = "Медленно и уверенно";
+"help.tip.slow.description" = "Двигайтесь медленно и плавно. Быстрые движения или тряска могут повлиять на качество сканирования. Не торопитесь для лучших результатов.";
+"help.tip.retry.title" = "Сканируйте несколько раз";
+"help.tip.retry.description" = "Если вы не довольны первым сканированием, попробуйте еще раз! Каждая комната разная, и иногда требуется несколько попыток для идеального результата.";
+"help.tip.save.title" = "Сохраняйте все";
+"help.tip.save.description" = "Включите автосохранение в Настройках, чтобы никогда не потерять скан. Вы всегда можете удалить ненужные сканы позже.";
+"help.tip.measure.title" = "Проверяйте измерения";
+"help.tip.measure.description" = "После сканирования нажмите, чтобы просмотреть план этажа и убедиться, что измерения выглядят правильно. Приложение показывает размеры в метрах или футах.";
+"help.trouble.notStarting.title" = "Сканирование не запускается";
+"help.trouble.notStarting.description" = "Убедитесь, что у вас устройство с LiDAR (iPhone 12 Pro или новее, iPad Pro 2020+). Проверьте, что разрешения камеры предоставлены в Настройки → Конфиденциальность → Камера.";
+"help.trouble.poorQuality.title" = "Плохое качество сканирования";
+"help.trouble.poorQuality.description" = "Попробуйте эти исправления:\n• Улучшите освещение комнаты\n• Двигайтесь медленнее\n• Подойдите ближе к стенам и объектам\n• Отсканируйте каждую стену несколько раз\n• Очистите препятствия с объектива камеры";
+"help.trouble.disappeared.title" = "Сканы исчезли";
+"help.trouble.disappeared.description" = "Если сканы отсутствуют после обновления приложения:\n• Проверьте Настройки → Синхронизация iCloud\n• Сканы теперь хранятся в Application Support\n• Старые сканы могут быть в папке Documents";
+"help.trouble.wifi.title" = "WiFi тепловая карта не работает";
+"help.trouble.wifi.description" = "Отслеживание WiFi требует:\n• Разрешение местоположения (Настройки → Конфиденциальность → Службы геолокации)\n• WiFi включен на устройстве\n• Подключено к WiFi сети\n• Включено на экране сканирования или в Настройках";
+
+// MARK: - Object Types
+"object.bed" = "Кровать";
+"object.toilet" = "Унитаз";
+"object.bathtub" = "Ванна";
+"object.sink" = "Раковина";
+"object.refrigerator" = "Холодильник";
+"object.fridge" = "Холодильник";
+"object.stove" = "Плита";
+"object.oven" = "Духовка";
+"object.dishwasher" = "Посудомойка";
+"object.sofa" = "Диван";
+"object.television" = "Телевизор";
+"object.tv" = "ТВ";
+"object.fireplace" = "Камин";
+"object.table" = "Стол";
+"object.chair" = "Стул";
+"object.storage" = "Шкаф";
+"object.washerDryer" = "Стиральная/сушильная машина";
+"object.washer" = "Стиральная машина";
+"object.stairs" = "Лестница";
+"object.unknown" = "Объект";
+"object.unknownObject" = "Неизвестный объект";
+
+// MARK: - Floor Plan Export
+"floorPlan.export" = "Экспорт плана этажа";

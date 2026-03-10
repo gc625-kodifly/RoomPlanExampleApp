@@ -64,7 +64,7 @@ class FloorPlanViewController: UIViewController {
     // MARK: - Setup
 
     private func setupUI() {
-        title = "Floor Plan"
+        title = L10n.FloorPlan.title.localized
         view.backgroundColor = .systemBackground
 
         // Navigation bar
@@ -172,27 +172,27 @@ class FloorPlanViewController: UIViewController {
 
     @objc private func shareFloorPlan() {
         let alert = UIAlertController(
-            title: "Export Floor Plan",
-            message: "Choose export format",
+            title: L10n.FloorPlan.export.localized,
+            message: L10n.Export.chooseFormat.localized,
             preferredStyle: .actionSheet
         )
 
         // PNG Image
-        alert.addAction(UIAlertAction(title: "PNG Image", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: L10n.Export.pngImage.localized, style: .default) { [weak self] _ in
             self?.exportAsPNG()
         })
 
         // SVG Vector
-        alert.addAction(UIAlertAction(title: "SVG (Vector Graphics)", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: L10n.Export.svgVector.localized, style: .default) { [weak self] _ in
             self?.exportAsSVG()
         })
 
         // DXF CAD
-        alert.addAction(UIAlertAction(title: "DXF (AutoCAD/CAD)", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: L10n.Export.dxfCad.localized, style: .default) { [weak self] _ in
             self?.exportAsDXF()
         })
 
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
 
         if let popover = alert.popoverPresentationController {
             popover.barButtonItem = navigationItem.rightBarButtonItem
@@ -252,11 +252,11 @@ class FloorPlanViewController: UIViewController {
 
     private func showExportError(_ error: Error) {
         let alert = UIAlertController(
-            title: "Export Failed",
+            title: L10n.Export.error.localized,
             message: error.localizedDescription,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: L10n.Common.ok.localized, style: .default))
         present(alert, animated: true)
     }
 

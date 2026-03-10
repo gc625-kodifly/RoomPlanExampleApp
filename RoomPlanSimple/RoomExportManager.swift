@@ -42,17 +42,17 @@ final class RoomExportManager {
         )
 
         // Save Room option
-        alert.addAction(UIAlertAction(title: "Save Room", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: L10n.Export.saveRoom.localized, style: .default) { _ in
             onSave()
         })
 
         // View Floor Plan option
-        alert.addAction(UIAlertAction(title: "View Floor Plan", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: L10n.Export.viewFloorPlan.localized, style: .default) { _ in
             onFloorPlan()
         })
 
         for format in ExportFormat.allCases {
-            alert.addAction(UIAlertAction(title: format.rawValue, style: .default) { _ in
+            alert.addAction(UIAlertAction(title: format.localizedName, style: .default) { _ in
                 onExport(format)
             })
         }
@@ -80,7 +80,11 @@ final class RoomExportManager {
         try? FileManager.default.removeItem(at: destinationURL)
 
         do {
-            if format.requiresConversion {
+            if format.isIfcExport {
+                // Generate IFC via Rust bimifc-writer from CapturedRoom data
+                let floorPlanData = FloorPlanData.from(results)
+                try IfcExportBridge.writeIFC(from: floorPlanData, to: destinationURL)
+            } else if format.requiresConversion {
                 // First export to USDZ, then convert
                 let tempUSDZ = FileManager.default.temporaryDirectory.appendingPathComponent("temp_export.usdz")
                 try? FileManager.default.removeItem(at: tempUSDZ)

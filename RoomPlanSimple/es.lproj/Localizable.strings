@@ -58,10 +58,24 @@
 "scan.saving" = "Guardando...";
 "scan.autoSaved" = "Guardado automático";
 "scan.saveSuccess" = "¡Habitación guardada exitosamente!";
+"scan.started" = "Escaneo iniciado";
+"scan.failed" = "Escaneo fallido";
+"scan.endedWithError" = "Escaneo terminó con error";
+"scan.noElementsDetected" = "No se detectaron elementos";
+"scan.photoCaptured" = "Foto capturada";
+"scan.roomSaved" = "Habitación Guardada";
+"scan.roomSavedMessage" = "\"%@\" guardada exitosamente.\n\n%@";
 "scan.error.title" = "Error de Escaneo";
 "scan.error.sessionFailed" = "La sesión de escaneo falló";
 "scan.error.exportFailed" = "No se pudo exportar el modelo de la habitación";
 "scan.error.saveFailed" = "No se pudo guardar la habitación";
+"scan.error.noData" = "No hay datos de escaneo disponibles";
+"scan.error.deviceNotSupported" = "Este dispositivo no admite escaneo de habitaciones";
+"scan.error.completeScanFirst" = "Complete un escaneo primero antes de exportar.";
+"scan.error.tryDifferentFormat" = "Intente exportar de nuevo o use un formato diferente.";
+"scan.error.adequateLighting" = "Asegure iluminación adecuada e intente de nuevo.";
+"scan.error.slowerMovements" = "Intente escanear la habitación con movimientos más lentos.";
+"scan.error.requiresLidar" = "RoomPlan requiere iPhone 12 Pro o posterior, o iPad Pro con LiDAR.";
 
 // MARK: - Saved Rooms
 "savedRooms.title" = "Habitaciones Guardadas";
@@ -80,6 +94,9 @@
 "savedRooms.objects" = "%d objetos";
 "savedRooms.area" = "%.1f m²";
 "savedRooms.dimensions" = "%.1f × %.1f m";
+"savedRooms.roomNamePlaceholder" = "Nombre de habitación";
+"savedRooms.saved" = "Guardado";
+"savedRooms.savedCount" = "Guardados (%d)";
 "savedRooms.selectRooms" = "Seleccionar";
 "savedRooms.selectedCount" = "%d seleccionado(s)";
 "savedRooms.deleteSelected" = "Eliminar";
@@ -115,10 +132,15 @@
 "export.title" = "Exportar Habitación";
 "export.format" = "Formato";
 "export.usdz" = "USDZ (Modelo 3D)";
+"export.usdz.parametric" = "USDZ Paramétrico";
+"export.usdz.textured" = "USDZ Texturizado";
+"export.usdz.mesh" = "USDZ Malla";
 "export.obj" = "OBJ (Modelo 3D)";
 "export.stl" = "STL (Impresión 3D)";
 "export.dxf" = "DXF (Plano CAD)";
 "export.svg" = "SVG (Plano Vectorial)";
+"export.ifc" = "IFC (Modelo BIM)";
+"export.formatDesc.ifc" = "Industry Foundation Classes — estándar abierto BIM";
 "export.png" = "PNG (Imagen de Plano)";
 "export.chooseExport" = "Elegir exportación";
 "export.floorPlanImage" = "Imagen de plano de planta";
@@ -127,6 +149,25 @@
 "export.success" = "Exportado exitosamente";
 "export.error" = "Falló la exportación";
 "export.share" = "Compartir %@";
+"export.saveRoom" = "Guardar Habitación";
+"export.viewFloorPlan" = "Ver Plano de Planta";
+"export.chooseFormat" = "Elegir formato de exportación";
+"export.toICloud" = "Exportar a iCloud Drive";
+"export.allToICloud" = "Exportar Todo a iCloud Drive";
+"export.toICloudMessage" = "Se copiarán todas las habitaciones guardadas a iCloud Drive donde serán visibles en Finder en Mac.\n\nUbicación: iCloud Drive → RoomPlanExport";
+"export.copyingToICloud" = "Copiando habitaciones a iCloud Drive";
+"export.iCloudComplete" = "Exportación Completa";
+"export.iCloudCompleteMessage" = "Se exportaron %d habitaciones a:\niCloud Drive → RoomPlanExport\n\nLos archivos se sincronizarán con tu Mac pronto.";
+"export.tryAgain" = "Intentar de Nuevo";
+"export.pngImage" = "Imagen PNG";
+"export.svgVector" = "SVG (Gráficos Vectoriales)";
+"export.dxfCad" = "DXF (AutoCAD/CAD)";
+"export.formatDesc.parametric" = "Geometría limpia con formas de muebles";
+"export.formatDesc.textured" = "Incluye texturas de superficie capturadas";
+"export.formatDesc.mesh" = "Datos de malla 3D sin procesar";
+"export.formatDesc.obj" = "Formato universal para Blender, 3DS Max, Maya";
+"export.formatDesc.stl" = "Formato estándar para impresión 3D";
+"export.complete" = "Exportación completa (Todos los datos)";
 
 // MARK: - Settings
 "settings.title" = "Configuración";
@@ -189,6 +230,10 @@
 "wifi.fair" = "Regular";
 "wifi.poor" = "Pobre";
 "wifi.noData" = "No se recopilaron datos WiFi";
+"wifi.trackingTitle" = "Rastreo de Señal WiFi";
+"wifi.trackingMessage" = "Para rastrear la intensidad de señal WiFi durante el escaneo, esta app necesita permiso de ubicación. Estos datos se almacenan localmente y no se comparten.";
+"wifi.enable" = "Activar";
+"wifi.samples" = "%d muestras";
 
 // MARK: - Onboarding
 "onboarding.welcome" = "Bienvenido a RoomPlan";
@@ -209,3 +254,74 @@
 "stats.objectCount" = "Cantidad de Objetos";
 "stats.floorArea" = "Área del Piso";
 "stats.roomDimensions" = "Dimensiones de la Habitación";
+
+// MARK: - Room Types
+"roomType.kitchen" = "Cocina";
+"roomType.bedroom" = "Dormitorio";
+"roomType.bathroom" = "Baño";
+"roomType.livingRoom" = "Sala de Estar";
+"roomType.diningRoom" = "Comedor";
+"roomType.office" = "Oficina";
+"roomType.unknown" = "Desconocido";
+"export.complete" = "Exportación completa (Todos los datos)";
+
+// MARK: - Ayuda Contenido
+"help.tips" = "Consejos Pro";
+"help.gettingStarted.content" = "Esta aplicación usa el escáner LiDAR de tu dispositivo para crear modelos 3D precisos de habitaciones.\n\nRequisitos para Escanear:\n• iPhone 12 Pro o posterior\n• iPad Pro (2020 o posterior)\n• iOS 16.0 o posterior\n\nNota: ¡Puedes ver habitaciones guardadas en cualquier dispositivo, incluso sin LiDAR! Usa iCloud para sincronizar habitaciones entre dispositivos.";
+"help.icloudSetup.content" = "Activa la sincronización iCloud para acceder a tus habitaciones guardadas en todos tus dispositivos, ¡incluso aquellos sin LiDAR!\n\nCómo activar:\n1. Ve a Configuración (icono de engranaje)\n2. Activa \"Sincronización iCloud\"\n3. Tus habitaciones se sincronizarán automáticamente\n\nRequisitos:\n• Conectado a iCloud en Configuración de iOS\n• iCloud Drive activado\n• Conexión a Internet\n\nBeneficios:\n• Accede a escaneos desde dispositivos sin LiDAR\n• Copia de seguridad automática de tus escaneos\n• Comparte habitaciones entre iPhone e iPad\n• Ve modelos 3D en cualquier lugar";
+"help.scanning.content" = "1. Toca \"Iniciar Nuevo Escaneo\" en la pantalla principal\n2. Apunta tu dispositivo a una esquina de la habitación\n3. Muévete lentamente a lo largo de cada pared, manteniendo la pared a la vista\n4. Escanea todas las paredes, ventanas, puertas y aberturas\n5. Incluye muebles y objetos que desees capturar\n6. Observa la vista previa inferior para ver tu progreso\n7. Toca \"Listo\" cuando la habitación se vea completa\n\nConsejos para mejores resultados:\n• Mantén tu dispositivo en posición vertical\n• Muévete lenta y constantemente\n• Asegura buena iluminación\n• Escanea cada pared al menos una vez\n• Acércate a los detalles que desees capturar";
+"help.exporting.content" = "Después de completar un escaneo, puedes exportarlo en múltiples formatos:\n\nFormatos de Modelo 3D:\n• USDZ - Mejor para dispositivos Apple, AR Quick Look\n• OBJ - Formato 3D universal para software de modelado\n• STL - Para aplicaciones de impresión 3D\n\nFormatos de Plano de Planta:\n• PNG - Imagen para compartir rápido\n• SVG - Formato vectorial para diseño gráfico\n• DXF - Formato CAD para arquitectos/diseñadores\n\nPara exportar:\n1. Completa tu escaneo o abre una habitación guardada\n2. Toca el botón exportar\n3. Elige tu formato\n4. Comparte via AirDrop, email o guarda en Archivos\n\nTodas las medidas están incluidas en los archivos exportados.";
+"help.feature.3d.title" = "Captura 3D de Habitación";
+"help.feature.3d.description" = "Crea modelos 3D precisos con tecnología LiDAR. La aplicación detecta automáticamente paredes, ventanas, puertas y muebles.";
+"help.feature.wifi.title" = "Mapa de Calor WiFi";
+"help.feature.wifi.description" = "Activa el rastreo WiFi durante el escaneo para crear un mapa de calor de intensidad de señal. Perfecto para planificar la ubicación del router. Requiere permiso de ubicación.";
+"help.feature.photo.title" = "Captura de Fotos";
+"help.feature.photo.description" = "Toma fotos durante el escaneo para documentar el espacio. Las fotos se guardan con tu escaneo y se muestran en el plano de planta.";
+"help.feature.export.title" = "Múltiples Formatos de Exportación";
+"help.feature.export.description" = "Exporta tus escaneos en varios formatos:\n• USDZ - Modelo 3D para AR/Vista Previa\n• OBJ - Modelo 3D para software CAD\n• STL - Modelo 3D para impresión 3D\n• DXF - Plano para CAD\n• SVG - Plano vectorial\n• PNG - Imagen del plano";
+"help.feature.icloud.title" = "Sincronización iCloud (Opcional)";
+"help.feature.icloud.description" = "Activa en Configuración para sincronizar tus escaneos en todos tus dispositivos. Cuando está activado, los escaneos se almacenan en iCloud Drive y están disponibles en todos los dispositivos conectados con tu ID de Apple.";
+"help.tip.lighting.title" = "La Iluminación es Clave";
+"help.tip.lighting.description" = "Escanea en buenas condiciones de iluminación. La luz natural del día o iluminación interior brillante funciona mejor. Evita áreas muy oscuras o muy brillantes.";
+"help.tip.slow.title" = "Lento y Constante";
+"help.tip.slow.description" = "Muévete lenta y suavemente. Los movimientos rápidos o temblores pueden afectar la calidad del escaneo. Tómate tu tiempo para mejores resultados.";
+"help.tip.retry.title" = "Escanea Múltiples Veces";
+"help.tip.retry.description" = "Si no estás contento con el primer escaneo, ¡inténtalo de nuevo! Cada habitación es diferente y a veces toma varios intentos obtener un resultado perfecto.";
+"help.tip.save.title" = "Guarda Todo";
+"help.tip.save.description" = "Activa el guardado automático en Configuración para nunca perder un escaneo. Siempre puedes eliminar escaneos no deseados más tarde.";
+"help.tip.measure.title" = "Verifica las Medidas";
+"help.tip.measure.description" = "Después de escanear, toca para ver el plano de planta y verifica que las medidas se vean correctas. La aplicación muestra dimensiones en metros o pies.";
+"help.trouble.notStarting.title" = "El Escaneo No Inicia";
+"help.trouble.notStarting.description" = "Asegúrate de tener un dispositivo compatible con LiDAR (iPhone 12 Pro o posterior, iPad Pro 2020+). Verifica que los permisos de cámara estén otorgados en Configuración → Privacidad → Cámara.";
+"help.trouble.poorQuality.title" = "Calidad de Escaneo Pobre";
+"help.trouble.poorQuality.description" = "Prueba estas soluciones:\n• Mejora la iluminación de la habitación\n• Muévete más lentamente\n• Acércate más a las paredes y objetos\n• Escanea cada pared múltiples veces\n• Limpia obstrucciones del lente de la cámara";
+"help.trouble.disappeared.title" = "Escaneos Desaparecidos";
+"help.trouble.disappeared.description" = "Si faltan escaneos después de actualizar la aplicación:\n• Verifica Configuración → Sincronización iCloud\n• Los escaneos ahora se almacenan en Soporte de Aplicaciones\n• Los escaneos antiguos pueden estar en la carpeta Documentos";
+"help.trouble.wifi.title" = "Mapa de Calor WiFi No Funciona";
+"help.trouble.wifi.description" = "El rastreo WiFi requiere:\n• Permiso de ubicación (Configuración → Privacidad → Ubicación)\n• WiFi activado en el dispositivo\n• Conectado a una red WiFi\n• Activado en la pantalla de escaneo o en Configuración";
+
+// MARK: - Object Types
+"object.bed" = "Cama";
+"object.toilet" = "Inodoro";
+"object.bathtub" = "Bañera";
+"object.sink" = "Lavabo";
+"object.refrigerator" = "Refrigerador";
+"object.fridge" = "Refri";
+"object.stove" = "Estufa";
+"object.oven" = "Horno";
+"object.dishwasher" = "Lavavajillas";
+"object.sofa" = "Sofá";
+"object.television" = "Televisor";
+"object.tv" = "TV";
+"object.fireplace" = "Chimenea";
+"object.table" = "Mesa";
+"object.chair" = "Silla";
+"object.storage" = "Almacenamiento";
+"object.washerDryer" = "Lavadora/Secadora";
+"object.washer" = "Lavadora";
+"object.stairs" = "Escaleras";
+"object.unknown" = "Objeto";
+"object.unknownObject" = "Objeto Desconocido";
+
+// MARK: - Floor Plan Export
+"floorPlan.export" = "Exportar Plano de Planta";

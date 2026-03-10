@@ -27,6 +27,24 @@ class SavedRoomsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+
+        // Trigger migration on first load if iCloud is enabled
+        if AppSettings.shared.iCloudSyncEnabled {
+            Task {
+                do {
+                    let migratedCount = try RoomStorageManager.shared.migrateToICloud()
+                    if migratedCount > 0 {
+                        print("✅ Auto-migrated \(migratedCount) files on startup")
+                        // Reload after migration
+                        DispatchQueue.main.async {
+                            self.loadSavedRooms()
+                        }
+                    }
+                } catch {
+                    print("⚠️ Auto-migration failed: \(error)")
+                }
+            }
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -196,27 +214,15 @@ class SavedRoomsViewController: UIViewController {
     @objc private func exportSelectedRooms() {
         guard !selectedRooms.isEmpty else { return }
 
-        var itemsToExport: [Any] = []
+        let roomsToExport = selectedRooms.map { savedRooms[$0.row] }
 
-        for indexPath in selectedRooms {
-            let room = savedRooms[indexPath.row]
-
-            let usdzURL = RoomStorageManager.shared.getUsdzURL(for: room)
-            if FileManager.default.fileExists(atPath: usdzURL.path) {
-                itemsToExport.append(usdzURL)
-            }
-
-            if let floorPlanImage = RoomStorageManager.shared.getFloorPlanImage(for: room) {
-                itemsToExport.append(floorPlanImage)
-            }
+        do {
+            // Use batch export with all photos, SVG floor plans, WiFi data
+            let exportURL = try RoomStorageManager.shared.exportMultipleRooms(roomsToExport)
+            shareItems([exportURL])
+        } catch {
+            showError("Failed to export rooms: \(error.localizedDescription)")
         }
-
-        guard !itemsToExport.isEmpty else {
-            showError(L10n.Export.error.localized)
-            return
-        }
-
-        shareItems(itemsToExport)
     }
 
     private func showExportOptions(for room: SavedRoom) {
@@ -262,6 +268,13 @@ class SavedRoomsViewController: UIViewController {
             })
         }
 
+        // Export IFC (BIM Model)
+        if FileManager.default.fileExists(atPath: usdzURL.path) {
+            alert.addAction(UIAlertAction(title: L10n.Export.ifc.localized, style: .default) { [weak self] _ in
+                self?.exportAndShare(room: room, format: .ifc)
+            })
+        }
+
         // Export Floor Plan Image (PNG)
         if let floorPlanImage = RoomStorageManager.shared.getFloorPlanImage(for: room) {
             alert.addAction(UIAlertAction(title: L10n.Export.png.localized, style: .default) { [weak self] _ in
@@ -295,6 +308,7 @@ class SavedRoomsViewController: UIViewController {
         case stl
         case svg
         case dxf
+        case ifc
     }
 
     private func exportAndShare(room: SavedRoom, format: ExportFormat) {
@@ -314,6 +328,8 @@ class SavedRoomsViewController: UIViewController {
                     fileURL = try RoomStorageManager.shared.exportToSVG(for: room)
                 case .dxf:
                     fileURL = try RoomStorageManager.shared.exportToDXF(for: room)
+                case .ifc:
+                    fileURL = try RoomStorageManager.shared.exportToIFC(for: room)
                 }
 
                 loadingAlert.dismiss(animated: true) {
@@ -407,7 +423,57 @@ extension SavedRoomsViewController: UITableViewDelegate {
             completion(true)
         }
 
-        return UISwipeActionsConfiguration(actions: [deleteAction])
+        let editAction = UIContextualAction(style: .normal, title: L10n.Common.edit.localized) { [weak self] _, _, completion in
+            guard let self = self else { return }
+            self.editRoom(self.savedRooms[indexPath.row])
+            completion(true)
+        }
+        editAction.backgroundColor = .systemBlue
+
+        return UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+    }
+
+    private func editRoom(_ room: SavedRoom) {
+        let alert = UIAlertController(title: L10n.Common.edit.localized, message: nil, preferredStyle: .alert)
+
+        // Add name text field
+        alert.addTextField { textField in
+            textField.text = room.name
+            textField.placeholder = L10n.SavedRooms.roomNamePlaceholder.localized
+        }
+
+        // Add notes text field
+        alert.addTextField { textField in
+            textField.text = room.notes
+            textField.placeholder = "Notes (optional)"
+        }
+
+        // Save action
+        alert.addAction(UIAlertAction(title: L10n.Common.save.localized, style: .default) { [weak self, weak alert] _ in
+            guard let self = self,
+                  let nameField = alert?.textFields?[0],
+                  let notesField = alert?.textFields?[1] else { return }
+
+            var updatedRoom = room
+            updatedRoom.name = nameField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? room.name
+            updatedRoom.notes = notesField.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if updatedRoom.notes?.isEmpty == true {
+                updatedRoom.notes = nil
+            }
+
+            do {
+                try RoomStorageManager.shared.updateRoom(updatedRoom)
+                self.loadSavedRooms() // Reload to show changes
+            } catch {
+                self.showError("Failed to update room: \(error.localizedDescription)")
+            }
+        })
+
+        // Cancel action
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+
+        present(alert, animated: true)
     }
 }
 
@@ -480,7 +546,10 @@ class SavedRoomCell: UITableViewCell {
     }
 
     func configure(with room: SavedRoom) {
-        nameLabel.text = room.name
+        // Show room type icon + name
+        let roomTypeIcon = room.roomType.icon
+        nameLabel.text = "\(roomTypeIcon) \(room.name)"
+
         dateLabel.text = room.formattedDate
         summaryLabel.text = room.summary
         dimensionsLabel.text = room.dimensionsSummary

@@ -241,23 +241,23 @@ struct FloorPlanData: Codable {
 
     private static func labelFor(category: CapturedRoom.Object.Category) -> String {
         switch category {
-        case .storage: return "Storage"
-        case .refrigerator: return "Fridge"
-        case .stove: return "Stove"
-        case .bed: return "Bed"
-        case .sink: return "Sink"
-        case .washerDryer: return "Washer"
-        case .toilet: return "Toilet"
-        case .bathtub: return "Bathtub"
-        case .oven: return "Oven"
-        case .dishwasher: return "Dishwasher"
-        case .table: return "Table"
-        case .sofa: return "Sofa"
-        case .chair: return "Chair"
-        case .fireplace: return "Fireplace"
-        case .television: return "TV"
-        case .stairs: return "Stairs"
-        @unknown default: return "Object"
+        case .storage: return L10n.ObjectType.storage.localized
+        case .refrigerator: return L10n.ObjectType.fridge.localized
+        case .stove: return L10n.ObjectType.stove.localized
+        case .bed: return L10n.ObjectType.bed.localized
+        case .sink: return L10n.ObjectType.sink.localized
+        case .washerDryer: return L10n.ObjectType.washer.localized
+        case .toilet: return L10n.ObjectType.toilet.localized
+        case .bathtub: return L10n.ObjectType.bathtub.localized
+        case .oven: return L10n.ObjectType.oven.localized
+        case .dishwasher: return L10n.ObjectType.dishwasher.localized
+        case .table: return L10n.ObjectType.table.localized
+        case .sofa: return L10n.ObjectType.sofa.localized
+        case .chair: return L10n.ObjectType.chair.localized
+        case .fireplace: return L10n.ObjectType.fireplace.localized
+        case .television: return L10n.ObjectType.tv.localized
+        case .stairs: return L10n.ObjectType.stairs.localized
+        @unknown default: return L10n.ObjectType.unknown.localized
         }
     }
 }
@@ -404,6 +404,13 @@ class FloorPlanView: UIView, UIGestureRecognizerDelegate {
         setNeedsDisplay()
     }
 
+    func configure(with data: FloorPlanData, wifiSamples: [WiFiSample]) {
+        floorPlanData = data
+        self.wifiSamples = wifiSamples
+        calculateTransform()
+        setNeedsDisplay()
+    }
+
     func setWifiSamples(_ samples: [WiFiSample]) {
         self.wifiSamples = samples
         setNeedsDisplay()
@@ -511,39 +518,111 @@ class FloorPlanView: UIView, UIGestureRecognizerDelegate {
     // MARK: - WiFi Heatmap Drawing
 
     private func drawWifiHeatmap(in context: CGContext) {
+        guard !wifiSamples.isEmpty else { return }
+
+        // Draw interpolated heatmap gradient
+        drawInterpolatedHeatmap(in: context)
+
+        // Draw sample point markers on top
+        drawSampleMarkers(in: context)
+    }
+
+    private func drawInterpolatedHeatmap(in context: CGContext) {
+        guard let floorPlanData = floorPlanData else { return }
+
+        // Create a lower resolution grid for performance
+        let gridSpacing: CGFloat = 20 // pixels
+        let minX = floorPlanData.boundingBox.minX
+        let minZ = floorPlanData.boundingBox.minY
+        let maxX = floorPlanData.boundingBox.maxX
+        let maxZ = floorPlanData.boundingBox.maxY
+
+        // Transform to screen coordinates
+        let screenMinPoint = transformPoint(x: Float(minX), z: Float(minZ))
+        let screenMaxPoint = transformPoint(x: Float(maxX), z: Float(maxZ))
+
+        // Calculate grid dimensions
+        let width = abs(screenMaxPoint.x - screenMinPoint.x)
+        let height = abs(screenMaxPoint.y - screenMinPoint.y)
+
+        let cols = Int(width / gridSpacing) + 1
+        let rows = Int(height / gridSpacing) + 1
+
+        // Inverse Distance Weighting (IDW) interpolation
+        let power: Float = 2.0 // IDW power parameter
+        let radius: Float = 2.0 // meters - influence radius
+
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let screenX = min(screenMinPoint.x, screenMaxPoint.x) + CGFloat(col) * gridSpacing
+                let screenY = min(screenMinPoint.y, screenMaxPoint.y) + CGFloat(row) * gridSpacing
+
+                // Convert back to world coordinates
+                let worldX = Float((screenX - offset.x) / (FloorPlanConfig.metersToPoints * scale))
+                let worldZ = Float((screenY - offset.y) / (FloorPlanConfig.metersToPoints * scale))
+
+                // Calculate interpolated signal strength
+                var weightedSum: Float = 0
+                var weightSum: Float = 0
+
+                for sample in wifiSamples {
+                    let dx = worldX - sample.position.x
+                    let dz = worldZ - sample.position.z
+                    let distance = sqrt(dx * dx + dz * dz)
+
+                    // Skip if too far
+                    if distance > radius { continue }
+
+                    // Calculate weight (closer = more influence)
+                    let weight = distance < 0.01 ? 1000.0 : 1.0 / pow(distance, power)
+
+                    weightedSum += Float(sample.rssi) * weight
+                    weightSum += weight
+                }
+
+                // Draw interpolated point if we have weights
+                if weightSum > 0 {
+                    let interpolatedRSSI = Int(weightedSum / weightSum)
+                    let color = colorForSignal(rssi: interpolatedRSSI)
+
+                    // Draw as semi-transparent square for smooth gradient
+                    context.setFillColor(color.withAlphaComponent(0.3).cgColor)
+                    context.fill(CGRect(
+                        x: screenX,
+                        y: screenY,
+                        width: gridSpacing,
+                        height: gridSpacing
+                    ))
+                }
+            }
+        }
+    }
+
+    private func drawSampleMarkers(in context: CGContext) {
         for sample in wifiSamples {
             let point = transformPoint(x: sample.position.x, z: sample.position.z)
             let color = colorForSignal(rssi: sample.rssi)
-            let radius = FloorPlanConfig.wifiDotRadius
+            let radius = FloorPlanConfig.wifiDotRadius * 0.5 // Smaller markers
 
-            // Draw gradient circle for each sample
+            // Draw sample point marker
             context.saveGState()
 
-            // Outer glow
-            context.setFillColor(color.withAlphaComponent(0.2).cgColor)
+            // White outline
+            context.setFillColor(UIColor.white.cgColor)
             context.fillEllipse(in: CGRect(
-                x: point.x - radius * 1.5,
-                y: point.y - radius * 1.5,
-                width: radius * 3,
-                height: radius * 3
+                x: point.x - radius * 1.2,
+                y: point.y - radius * 1.2,
+                width: radius * 2.4,
+                height: radius * 2.4
             ))
 
-            // Inner dot
-            context.setFillColor(color.withAlphaComponent(FloorPlanConfig.wifiDotAlpha).cgColor)
+            // Colored center
+            context.setFillColor(color.cgColor)
             context.fillEllipse(in: CGRect(
                 x: point.x - radius,
                 y: point.y - radius,
                 width: radius * 2,
                 height: radius * 2
-            ))
-
-            // Center dot
-            context.setFillColor(color.cgColor)
-            context.fillEllipse(in: CGRect(
-                x: point.x - radius * 0.4,
-                y: point.y - radius * 0.4,
-                width: radius * 0.8,
-                height: radius * 0.8
             ))
 
             context.restoreGState()

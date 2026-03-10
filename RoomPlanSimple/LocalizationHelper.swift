@@ -94,12 +94,26 @@ enum L10n {
         static let saving = "scan.saving"
         static let autoSaved = "scan.autoSaved"
         static let saveSuccess = "scan.saveSuccess"
+        static let started = "scan.started"
+        static let failed = "scan.failed"
+        static let endedWithError = "scan.endedWithError"
+        static let noElementsDetected = "scan.noElementsDetected"
+        static let photoCaptured = "scan.photoCaptured"
+        static let roomSaved = "scan.roomSaved"
+        static let roomSavedMessage = "scan.roomSavedMessage"
 
         enum Error {
             static let title = "scan.error.title"
             static let sessionFailed = "scan.error.sessionFailed"
             static let exportFailed = "scan.error.exportFailed"
             static let saveFailed = "scan.error.saveFailed"
+            static let noData = "scan.error.noData"
+            static let deviceNotSupported = "scan.error.deviceNotSupported"
+            static let completeScanFirst = "scan.error.completeScanFirst"
+            static let tryDifferentFormat = "scan.error.tryDifferentFormat"
+            static let adequateLighting = "scan.error.adequateLighting"
+            static let slowerMovements = "scan.error.slowerMovements"
+            static let requiresLidar = "scan.error.requiresLidar"
         }
     }
 
@@ -119,6 +133,9 @@ enum L10n {
         static let selectedCount = "savedRooms.selectedCount"
         static let deleteSelected = "savedRooms.deleteSelected"
         static let exportSelected = "savedRooms.exportSelected"
+        static let roomNamePlaceholder = "savedRooms.roomNamePlaceholder"
+        static let saved = "savedRooms.saved"
+        static let savedCount = "savedRooms.savedCount"
 
         enum DeleteConfirm {
             static let title = "savedRooms.deleteConfirm.title"
@@ -176,11 +193,15 @@ enum L10n {
         static let title = "export.title"
         static let format = "export.format"
         static let usdz = "export.usdz"
+        static let usdzParametric = "export.usdz.parametric"
+        static let usdzTextured = "export.usdz.textured"
+        static let usdzMesh = "export.usdz.mesh"
         static let obj = "export.obj"
         static let stl = "export.stl"
         static let dxf = "export.dxf"
         static let svg = "export.svg"
         static let png = "export.png"
+        static let complete = "export.complete"
         static let processing = "export.processing"
         static let success = "export.success"
         static let error = "export.error"
@@ -188,6 +209,29 @@ enum L10n {
         static let chooseExport = "export.chooseExport"
         static let floorPlanImage = "export.floorPlanImage"
         static let both = "export.both"
+        static let saveRoom = "export.saveRoom"
+        static let viewFloorPlan = "export.viewFloorPlan"
+        static let chooseFormat = "export.chooseFormat"
+        static let toICloud = "export.toICloud"
+        static let allToICloud = "export.allToICloud"
+        static let toICloudMessage = "export.toICloudMessage"
+        static let copyingToICloud = "export.copyingToICloud"
+        static let iCloudComplete = "export.iCloudComplete"
+        static let iCloudCompleteMessage = "export.iCloudCompleteMessage"
+        static let tryAgain = "export.tryAgain"
+        static let pngImage = "export.pngImage"
+        static let svgVector = "export.svgVector"
+        static let dxfCad = "export.dxfCad"
+        static let ifc = "export.ifc"
+
+        enum FormatDesc {
+            static let parametric = "export.formatDesc.parametric"
+            static let textured = "export.formatDesc.textured"
+            static let mesh = "export.formatDesc.mesh"
+            static let obj = "export.formatDesc.obj"
+            static let stl = "export.formatDesc.stl"
+            static let ifc = "export.formatDesc.ifc"
+        }
     }
 
     // MARK: - Settings
@@ -241,11 +285,50 @@ enum L10n {
     enum Help {
         static let title = "help.title"
         static let gettingStarted = "help.gettingStarted"
+        static let gettingStartedContent = "help.gettingStarted.content"
         static let icloudSetup = "help.icloudSetup"
+        static let icloudSetupContent = "help.icloudSetup.content"
         static let scanning = "help.scanning"
+        static let scanningContent = "help.scanning.content"
         static let viewing = "help.viewing"
         static let exporting = "help.exporting"
+        static let exportingContent = "help.exporting.content"
         static let troubleshooting = "help.troubleshooting"
+        static let tips = "help.tips"
+
+        // Feature descriptions
+        static let feature3DTitle = "help.feature.3d.title"
+        static let feature3DDesc = "help.feature.3d.description"
+        static let featureWiFiTitle = "help.feature.wifi.title"
+        static let featureWiFiDesc = "help.feature.wifi.description"
+        static let featurePhotoTitle = "help.feature.photo.title"
+        static let featurePhotoDesc = "help.feature.photo.description"
+        static let featureExportTitle = "help.feature.export.title"
+        static let featureExportDesc = "help.feature.export.description"
+        static let featureICloudTitle = "help.feature.icloud.title"
+        static let featureICloudDesc = "help.feature.icloud.description"
+
+        // Tips
+        static let tipLightingTitle = "help.tip.lighting.title"
+        static let tipLightingDesc = "help.tip.lighting.description"
+        static let tipSlowTitle = "help.tip.slow.title"
+        static let tipSlowDesc = "help.tip.slow.description"
+        static let tipRetryTitle = "help.tip.retry.title"
+        static let tipRetryDesc = "help.tip.retry.description"
+        static let tipSaveTitle = "help.tip.save.title"
+        static let tipSaveDesc = "help.tip.save.description"
+        static let tipMeasureTitle = "help.tip.measure.title"
+        static let tipMeasureDesc = "help.tip.measure.description"
+
+        // Troubleshooting
+        static let troubleNotStartingTitle = "help.trouble.notStarting.title"
+        static let troubleNotStartingDesc = "help.trouble.notStarting.description"
+        static let troublePoorQualityTitle = "help.trouble.poorQuality.title"
+        static let troublePoorQualityDesc = "help.trouble.poorQuality.description"
+        static let troubleDisappearedTitle = "help.trouble.disappeared.title"
+        static let troubleDisappearedDesc = "help.trouble.disappeared.description"
+        static let troubleWiFiTitle = "help.trouble.wifi.title"
+        static let troubleWiFiDesc = "help.trouble.wifi.description"
     }
 
     // MARK: - Alerts
@@ -263,6 +346,7 @@ enum L10n {
         static let error = "floorPlan.error"
         static let view = "floorPlan.view"
         static let notFound = "floorPlan.notFound"
+        static let export = "floorPlan.export"
     }
 
     // MARK: - WiFi
@@ -274,6 +358,35 @@ enum L10n {
         static let fair = "wifi.fair"
         static let poor = "wifi.poor"
         static let noData = "wifi.noData"
+        static let trackingTitle = "wifi.trackingTitle"
+        static let trackingMessage = "wifi.trackingMessage"
+        static let enable = "wifi.enable"
+        static let samples = "wifi.samples"
+    }
+
+    // MARK: - Object Types
+    enum ObjectType {
+        static let bed = "object.bed"
+        static let toilet = "object.toilet"
+        static let bathtub = "object.bathtub"
+        static let sink = "object.sink"
+        static let refrigerator = "object.refrigerator"
+        static let fridge = "object.fridge"
+        static let stove = "object.stove"
+        static let oven = "object.oven"
+        static let dishwasher = "object.dishwasher"
+        static let sofa = "object.sofa"
+        static let television = "object.television"
+        static let tv = "object.tv"
+        static let fireplace = "object.fireplace"
+        static let table = "object.table"
+        static let chair = "object.chair"
+        static let storage = "object.storage"
+        static let washerDryer = "object.washerDryer"
+        static let washer = "object.washer"
+        static let stairs = "object.stairs"
+        static let unknown = "object.unknown"
+        static let unknownObject = "object.unknownObject"
     }
 
     // MARK: - Onboarding

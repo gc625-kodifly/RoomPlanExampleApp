@@ -46,7 +46,7 @@ class OnboardingViewController: UIViewController {
 
         // Saved rooms button on the right
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Saved",
+            title: L10n.SavedRooms.saved.localized,
             style: .plain,
             target: self,
             action: #selector(showSavedRooms)
@@ -62,10 +62,10 @@ class OnboardingViewController: UIViewController {
     private func updateSavedRoomsButton() {
         let count = RoomStorageManager.shared.getSavedRooms().count
         if count > 0 {
-            navigationItem.rightBarButtonItem?.title = "Saved (\(count))"
+            navigationItem.rightBarButtonItem?.title = L10n.SavedRooms.savedCount.localized(count)
             navigationItem.rightBarButtonItem?.isEnabled = true
         } else {
-            navigationItem.rightBarButtonItem?.title = "Saved"
+            navigationItem.rightBarButtonItem?.title = L10n.SavedRooms.saved.localized
             navigationItem.rightBarButtonItem?.isEnabled = false
         }
     }

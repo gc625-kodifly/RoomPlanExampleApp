@@ -73,10 +73,11 @@ final class AppSettings {
     var iCloudSyncEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: Keys.iCloudSyncEnabled) }
         set {
+            let oldValue = UserDefaults.standard.bool(forKey: Keys.iCloudSyncEnabled)
             UserDefaults.standard.set(newValue, forKey: Keys.iCloudSyncEnabled)
             NotificationCenter.default.post(name: .settingsDidChange, object: nil)
-            // When iCloud sync is toggled, migrate existing rooms
-            if newValue != UserDefaults.standard.bool(forKey: Keys.iCloudSyncEnabled) {
+            // When iCloud sync is toggled ON, migrate existing rooms
+            if newValue && newValue != oldValue {
                 Task {
                     await migrateRoomsToNewLocation()
                 }
@@ -170,7 +171,17 @@ final class AppSettings {
     /// Migrate saved rooms when iCloud sync is toggled
     @MainActor
     private func migrateRoomsToNewLocation() async {
-        // Post notification to trigger migration in RoomStorageManager
+        // Perform migration from local storage to iCloud
+        do {
+            let migratedCount = try RoomStorageManager.shared.migrateToICloud()
+            if migratedCount > 0 {
+                print("✅ Migrated \(migratedCount) rooms to iCloud")
+            }
+        } catch {
+            print("⚠️  Failed to migrate rooms: \(error)")
+        }
+
+        // Post notification to trigger UI refresh
         NotificationCenter.default.post(name: .iCloudSyncToggled, object: nil)
     }
 

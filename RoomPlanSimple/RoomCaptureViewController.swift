@@ -8,6 +8,8 @@ The sample app's main view controller that manages the scanning process.
 import UIKit
 import RoomPlan
 import AudioToolbox
+import ARKit
+import SceneKit
 
 // MARK: - RoomCaptureViewController
 
@@ -44,6 +46,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     private let wifiSignalManager = WiFiSignalManager()
     private var wifiToggleButton: UIButton?
     private var wifiStatusLabel: UILabel?
+    private var wifiOverlayView: WiFiOverlayView?
 
     // Export manager (Issue #14 refactoring)
     private lazy var exportManager = RoomExportManager(
@@ -205,6 +208,38 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         wifiToggleButton = button
         wifiStatusLabel = statusLabel
         updateWifiButtonState()
+
+        // Setup WiFi overlay view
+        setupWifiOverlay()
+    }
+
+    private func setupWifiOverlay() {
+        let overlayView = WiFiOverlayView(frame: view.bounds)
+        overlayView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        overlayView.isHidden = true // Only show when WiFi tracking enabled
+        view.addSubview(overlayView)
+        wifiOverlayView = overlayView
+
+        // Connect WiFi sample callback to overlay
+        wifiSignalManager.onSampleCaptured = { [weak self] sample in
+            guard let self = self, let overlayView = self.wifiOverlayView else { return }
+
+            // Convert WiFiSample.Position to SIMD3<Float>
+            let position = SIMD3<Float>(
+                sample.position.x,
+                sample.position.y,
+                sample.position.z
+            )
+
+            overlayView.addWiFiSample(
+                id: sample.id,
+                position: position,
+                rssi: sample.rssi
+            )
+
+            // Also add coverage point
+            overlayView.addCoveragePoint(position: position)
+        }
     }
 
     @objc private func toggleWifi() {
@@ -217,6 +252,9 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         wifiSignalManager.isEnabled.toggle()
         updateWifiButtonState()
 
+        // Show/hide overlay
+        wifiOverlayView?.isHidden = !wifiSignalManager.isEnabled
+
         if wifiSignalManager.isEnabled && isScanning {
             wifiSignalManager.startSampling()
         } else {
@@ -228,15 +266,15 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     private func showWifiPermissionAlert() {
         let alert = UIAlertController(
-            title: "WiFi Signal Tracking",
-            message: "To track WiFi signal strength during scanning, this app needs location permission. This data is stored locally and not shared.",
+            title: L10n.WiFi.trackingTitle.localized,
+            message: L10n.WiFi.trackingMessage.localized,
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Enable", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: L10n.WiFi.enable.localized, style: .default) { [weak self] _ in
             self?.wifiSignalManager.requestPermission()
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
 
         present(alert, animated: true)
     }
@@ -264,7 +302,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         if let rssi = wifiSignalManager.currentRSSI {
             wifiStatusLabel?.text = " \(rssi)dB (\(count)) "
         } else {
-            wifiStatusLabel?.text = " \(count) samples "
+            wifiStatusLabel?.text = " " + L10n.WiFi.samples.localized(count) + " "
         }
         wifiStatusLabel?.isHidden = false
     }
@@ -338,10 +376,14 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         roomCaptureView?.captureSession.run(configuration: roomCaptureSessionConfig)
         photoCaptureManager.startSession()
 
+        // Clear WiFi overlay from previous scans
+        wifiOverlayView?.clear()
+
         // Apply default WiFi tracking setting
         if AppSettings.shared.defaultWifiTracking && wifiSignalManager.isAuthorized {
             wifiSignalManager.isEnabled = true
             updateWifiButtonState()
+            wifiOverlayView?.isHidden = false
         }
 
         // Start WiFi sampling if enabled
@@ -392,7 +434,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     private func performAutoSave(_ room: CapturedRoom) {
         do {
-            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager)
+            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager, wifiManager: wifiSignalManager)
             showAutoSaveConfirmation(savedRoom)
         } catch {
             // Don't show error for auto-save - just log it
@@ -459,6 +501,12 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             // Update WiFi position tracking (use room center as reference)
             if let center = roomCenter {
                 self.wifiSignalManager.updatePosition(center)
+
+                // Update overlay camera transform
+                // For the forward vector, assume user is scanning from edges toward center
+                // Use a default forward vector pointing into the room
+                let forward = SIMD3<Float>(0, 0, -1)
+                self.wifiOverlayView?.updateCameraTransform(position: center, forward: forward)
             }
             self.updateWifiStatus()
         }
@@ -544,7 +592,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     private func showPhotoCapturedFeedback() {
         let feedbackLabel = UILabel()
-        feedbackLabel.text = "Photo captured"
+        feedbackLabel.text = L10n.Scan.photoCaptured.localized
         feedbackLabel.font = .systemFont(ofSize: 14, weight: .medium)
         feedbackLabel.textColor = .white
         feedbackLabel.backgroundColor = UIColor.black.withAlphaComponent(0.6)
@@ -593,7 +641,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     private func saveRoom(_ room: CapturedRoom) {
         do {
-            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager)
+            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager, wifiManager: wifiSignalManager)
             showSaveSuccess(savedRoom)
             HapticFeedbackManager.shared.scanComplete()
         } catch {
@@ -603,8 +651,8 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     private func showSaveSuccess(_ savedRoom: SavedRoom) {
         let alert = UIAlertController(
-            title: "Room Saved",
-            message: "\"\(savedRoom.name)\" saved successfully.\n\n\(savedRoom.summary)",
+            title: L10n.Scan.roomSaved.localized,
+            message: L10n.Scan.roomSavedMessage.localized(savedRoom.name, savedRoom.summary),
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: AppConstants.Strings.okButton, style: .default))

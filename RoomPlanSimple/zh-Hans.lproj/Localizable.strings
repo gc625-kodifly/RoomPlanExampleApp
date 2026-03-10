@@ -58,10 +58,24 @@
 "scan.saving" = "保存中...";
 "scan.autoSaved" = "已自动保存";
 "scan.saveSuccess" = "房间保存成功！";
+"scan.started" = "扫描已开始";
+"scan.failed" = "扫描失败";
+"scan.endedWithError" = "扫描出错结束";
+"scan.noElementsDetected" = "未检测到任何元素";
+"scan.photoCaptured" = "照片已拍摄";
+"scan.roomSaved" = "房间已保存";
+"scan.roomSavedMessage" = "\"%@\" 保存成功。\n\n%@";
 "scan.error.title" = "扫描错误";
 "scan.error.sessionFailed" = "扫描会话失败";
 "scan.error.exportFailed" = "导出房间模型失败";
 "scan.error.saveFailed" = "保存房间失败";
+"scan.error.noData" = "没有可用的扫描数据";
+"scan.error.deviceNotSupported" = "此设备不支持房间扫描";
+"scan.error.completeScanFirst" = "请先完成扫描再导出。";
+"scan.error.tryDifferentFormat" = "请重试导出或使用其他格式。";
+"scan.error.adequateLighting" = "请确保光线充足后重试。";
+"scan.error.slowerMovements" = "请尝试更慢地扫描房间。";
+"scan.error.requiresLidar" = "RoomPlan 需要 iPhone 12 Pro 或更新款，或带激光雷达的 iPad Pro。";
 
 // MARK: - Saved Rooms
 "savedRooms.title" = "已保存房间";
@@ -80,6 +94,9 @@
 "savedRooms.objects" = "%d 个物体";
 "savedRooms.area" = "%.1f 平方米";
 "savedRooms.dimensions" = "%.1f × %.1f 米";
+"savedRooms.roomNamePlaceholder" = "房间名称";
+"savedRooms.saved" = "已保存";
+"savedRooms.savedCount" = "已保存 (%d)";
 "savedRooms.selectRooms" = "选择";
 "savedRooms.selectedCount" = "已选择 %d 个";
 "savedRooms.deleteSelected" = "删除";
@@ -115,10 +132,15 @@
 "export.title" = "导出房间";
 "export.format" = "格式";
 "export.usdz" = "USDZ（3D 模型）";
+"export.usdz.parametric" = "USDZ 参数化";
+"export.usdz.textured" = "USDZ 纹理";
+"export.usdz.mesh" = "USDZ 网格";
 "export.obj" = "OBJ（3D 模型）";
 "export.stl" = "STL（3D 打印）";
 "export.dxf" = "DXF（CAD 平面图）";
 "export.svg" = "SVG（矢量平面图）";
+"export.ifc" = "IFC（BIM 模型）";
+"export.formatDesc.ifc" = "Industry Foundation Classes — 开放 BIM 标准";
 "export.png" = "PNG（平面图图片）";
 "export.chooseExport" = "选择导出内容";
 "export.floorPlanImage" = "平面图图片";
@@ -127,6 +149,25 @@
 "export.success" = "导出成功";
 "export.error" = "导出失败";
 "export.share" = "分享 %@";
+"export.saveRoom" = "保存房间";
+"export.viewFloorPlan" = "查看平面图";
+"export.chooseFormat" = "选择导出格式";
+"export.toICloud" = "导出到 iCloud 云盘";
+"export.allToICloud" = "全部导出到 iCloud 云盘";
+"export.toICloudMessage" = "所有已保存的房间将被复制到 iCloud 云盘，可在 Mac 的访达中查看。\n\n位置：iCloud 云盘 → RoomPlanExport";
+"export.copyingToICloud" = "正在复制房间到 iCloud 云盘";
+"export.iCloudComplete" = "导出完成";
+"export.iCloudCompleteMessage" = "已导出 %d 个房间到：\niCloud 云盘 → RoomPlanExport\n\n文件将很快同步到您的 Mac。";
+"export.tryAgain" = "重试";
+"export.pngImage" = "PNG 图片";
+"export.svgVector" = "SVG（矢量图形）";
+"export.dxfCad" = "DXF（AutoCAD/CAD）";
+"export.formatDesc.parametric" = "带家具形状的干净几何图形";
+"export.formatDesc.textured" = "包含捕获的表面纹理";
+"export.formatDesc.mesh" = "原始 3D 网格数据";
+"export.formatDesc.obj" = "Blender、3DS Max、Maya 的通用格式";
+"export.formatDesc.stl" = "3D 打印的标准格式";
+"export.complete" = "完整导出（所有数据）";
 
 // MARK: - Settings
 "settings.title" = "设置";
@@ -189,6 +230,10 @@
 "wifi.fair" = "一般";
 "wifi.poor" = "较差";
 "wifi.noData" = "未收集 WiFi 数据";
+"wifi.trackingTitle" = "WiFi 信号追踪";
+"wifi.trackingMessage" = "为了在扫描期间追踪 WiFi 信号强度，此应用需要位置权限。这些数据仅存储在本地，不会共享。";
+"wifi.enable" = "启用";
+"wifi.samples" = "%d 个样本";
 
 // MARK: - Onboarding
 "onboarding.welcome" = "欢迎使用房间规划";
@@ -209,3 +254,74 @@
 "stats.objectCount" = "物体数量";
 "stats.floorArea" = "面积";
 "stats.roomDimensions" = "房间尺寸";
+
+// MARK: - Room Types
+"roomType.kitchen" = "厨房";
+"roomType.bedroom" = "卧室";
+"roomType.bathroom" = "浴室";
+"roomType.livingRoom" = "客厅";
+"roomType.diningRoom" = "餐厅";
+"roomType.office" = "办公室";
+"roomType.unknown" = "未知";
+"export.complete" = "完整导出（所有数据）";
+
+// MARK: - 帮助内容
+"help.tips" = "专业提示";
+"help.gettingStarted.content" = "此应用使用您设备的LiDAR扫描仪创建精确的房间3D模型。\n\n扫描要求：\n• iPhone 12 Pro或更新机型\n• iPad Pro (2020或更新)\n• iOS 16.0或更高版本\n\n注意：您可以在任何设备上查看已保存的房间，即使没有LiDAR！使用iCloud在设备间同步房间。";
+"help.icloudSetup.content" = "启用iCloud同步以在所有设备上访问已保存的房间 - 即使是没有LiDAR的设备！\n\n如何启用：\n1. 前往设置（齿轮图标）\n2. 打开\"iCloud同步\"\n3. 您的房间将自动同步\n\n要求：\n• 在iOS设置中登录iCloud\n• 启用iCloud Drive\n• 互联网连接\n\n好处：\n• 从非LiDAR设备访问扫描\n• 自动备份您的扫描\n• 在iPhone和iPad间共享房间\n• 随处查看3D模型";
+"help.scanning.content" = "1. 在主屏幕点击\"开始新扫描\"\n2. 将设备对准房间的一个角落\n3. 沿着每面墙缓慢移动，保持墙面在视野内\n4. 扫描所有墙壁、窗户、门和开口\n5. 包括您想要捕捉的家具和物体\n6. 观看底部预览以查看进度\n7. 当房间看起来完整时点击\"完成\"\n\n获得最佳效果的提示：\n• 保持设备垂直\n• 缓慢稳定地移动\n• 确保良好照明\n• 每面墙至少扫描一次\n• 靠近您想捕捉的细节";
+"help.exporting.content" = "完成扫描后，您可以以多种格式导出：\n\n3D模型格式：\n• USDZ - 最适合Apple设备，AR快速查看\n• OBJ - 建模软件的通用3D格式\n• STL - 用于3D打印应用\n\n平面图格式：\n• PNG - 快速分享的图像\n• SVG - 图形设计的矢量格式\n• DXF - 建筑师/设计师的CAD格式\n\n导出步骤：\n1. 完成扫描或打开已保存的房间\n2. 点击导出按钮\n3. 选择格式\n4. 通过AirDrop、电子邮件分享或保存到文件\n\n所有测量数据都包含在导出文件中。";
+"help.feature.3d.title" = "3D房间捕捉";
+"help.feature.3d.description" = "使用LiDAR技术创建精确的3D模型。应用会自动检测墙壁、窗户、门和家具。";
+"help.feature.wifi.title" = "WiFi热图";
+"help.feature.wifi.description" = "扫描时启用WiFi追踪以创建信号强度热图。非常适合规划路由器位置。需要位置权限。";
+"help.feature.photo.title" = "照片捕捉";
+"help.feature.photo.description" = "扫描时拍照以记录空间。照片与扫描一起保存并显示在平面图上。";
+"help.feature.export.title" = "多种导出格式";
+"help.feature.export.description" = "以多种格式导出扫描：\n• USDZ - AR/预览的3D模型\n• OBJ - CAD软件的3D模型\n• STL - 3D打印的3D模型\n• DXF - CAD平面图\n• SVG - 矢量平面图\n• PNG - 平面图图像";
+"help.feature.icloud.title" = "iCloud同步（可选）";
+"help.feature.icloud.description" = "在设置中启用以在所有设备上同步扫描。启用后，扫描存储在iCloud Drive中，并在使用您的Apple ID登录的所有设备上可用。";
+"help.tip.lighting.title" = "照明是关键";
+"help.tip.lighting.description" = "在良好的照明条件下扫描。自然日光或明亮的室内照明效果最好。避免非常暗或非常亮的区域。";
+"help.tip.slow.title" = "缓慢稳定";
+"help.tip.slow.description" = "缓慢平稳地移动。快速移动或晃动会影响扫描质量。花时间获得最佳效果。";
+"help.tip.retry.title" = "多次扫描";
+"help.tip.retry.description" = "如果对第一次扫描不满意，请再试一次！每个房间都不同，有时需要几次尝试才能获得完美效果。";
+"help.tip.save.title" = "保存所有内容";
+"help.tip.save.description" = "在设置中启用自动保存，这样您永远不会丢失扫描。您始终可以稍后删除不需要的扫描。";
+"help.tip.measure.title" = "检查测量";
+"help.tip.measure.description" = "扫描后，点击查看平面图并验证测量看起来是否正确。应用以米或英尺显示尺寸。";
+"help.trouble.notStarting.title" = "扫描无法启动";
+"help.trouble.notStarting.description" = "确保您拥有支持LiDAR的设备（iPhone 12 Pro或更新，iPad Pro 2020+）。检查在设置→隐私→相机中是否已授予相机权限。";
+"help.trouble.poorQuality.title" = "扫描质量差";
+"help.trouble.poorQuality.description" = "尝试这些修复：\n• 改善房间照明\n• 移动更慢\n• 靠近墙壁和物体\n• 多次扫描每面墙\n• 清除相机镜头上的障碍物";
+"help.trouble.disappeared.title" = "扫描消失";
+"help.trouble.disappeared.description" = "如果更新应用后扫描丢失：\n• 检查设置→iCloud同步\n• 扫描现在存储在Application Support中\n• 旧扫描可能在Documents文件夹中";
+"help.trouble.wifi.title" = "WiFi热图不工作";
+"help.trouble.wifi.description" = "WiFi追踪需要：\n• 位置权限（设置→隐私→定位服务）\n• 设备上启用WiFi\n• 连接到WiFi网络\n• 在扫描屏幕或设置中打开";
+
+// MARK: - Object Types
+"object.bed" = "床";
+"object.toilet" = "马桶";
+"object.bathtub" = "浴缸";
+"object.sink" = "水槽";
+"object.refrigerator" = "冰箱";
+"object.fridge" = "冰箱";
+"object.stove" = "炉灶";
+"object.oven" = "烤箱";
+"object.dishwasher" = "洗碗机";
+"object.sofa" = "沙发";
+"object.television" = "电视";
+"object.tv" = "电视";
+"object.fireplace" = "壁炉";
+"object.table" = "桌子";
+"object.chair" = "椅子";
+"object.storage" = "储物柜";
+"object.washerDryer" = "洗衣机/烘干机";
+"object.washer" = "洗衣机";
+"object.stairs" = "楼梯";
+"object.unknown" = "物体";
+"object.unknownObject" = "未知物体";
+
+// MARK: - Floor Plan Export
+"floorPlan.export" = "导出平面图";

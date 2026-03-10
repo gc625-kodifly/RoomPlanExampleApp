@@ -34,6 +34,7 @@ class SettingsViewController: UITableViewController {
     private enum SavingRow: Int, CaseIterable {
         case autoSave
         case iCloudSync
+        case exportToiCloudDrive
     }
 
     private enum LanguageRow: Int, CaseIterable {
@@ -170,6 +171,13 @@ class SettingsViewController: UITableViewController {
             // Disable toggle if iCloud not available
             cell.switchControl.isEnabled = settings.isICloudAvailable
             return cell
+
+        case .exportToiCloudDrive:
+            let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
+            cell.textLabel?.text = L10n.Export.allToICloud.localized
+            cell.textLabel?.textColor = .systemBlue
+            cell.accessoryType = .disclosureIndicator
+            return cell
         }
     }
 
@@ -216,6 +224,10 @@ class SettingsViewController: UITableViewController {
         guard let section = Section(rawValue: indexPath.section) else { return }
 
         switch section {
+        case .saving:
+            if let row = SavingRow(rawValue: indexPath.row), row == .exportToiCloudDrive {
+                exportAllToiCloudDrive()
+            }
         case .language:
             if let row = LanguageRow(rawValue: indexPath.row), row == .appLanguage {
                 showLanguagePicker()
@@ -294,6 +306,110 @@ class SettingsViewController: UITableViewController {
         alert.addAction(UIAlertAction(title: L10n.Common.ok.localized, style: .default))
 
         present(alert, animated: true)
+    }
+
+    // MARK: - iCloud Drive Export
+
+    private func exportAllToiCloudDrive() {
+        let alert = UIAlertController(
+            title: L10n.Export.toICloud.localized,
+            message: L10n.Export.toICloudMessage.localized,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Viewer.export.localized, style: .default) { [weak self] _ in
+            self?.performiCloudDriveExport()
+        })
+
+        present(alert, animated: true)
+    }
+
+    private func performiCloudDriveExport() {
+        // Show progress indicator
+        let progressAlert = UIAlertController(
+            title: L10n.Export.processing.localized,
+            message: L10n.Export.copyingToICloud.localized,
+            preferredStyle: .alert
+        )
+        present(progressAlert, animated: true)
+
+        Task {
+            do {
+                // Get all saved rooms
+                let rooms = RoomStorageManager.shared.getSavedRooms()
+
+                // Get iCloud Drive URL
+                guard let iCloudDrive = FileManager.default.url(forUbiquityContainerIdentifier: nil)?
+                    .appendingPathComponent("RoomPlanExport") else {
+                    throw NSError(domain: "SettingsViewController", code: 1,
+                                userInfo: [NSLocalizedDescriptionKey: "iCloud Drive not available"])
+                }
+
+                // Create export directory
+                try FileManager.default.createDirectory(at: iCloudDrive, withIntermediateDirectories: true)
+
+                // Export each room
+                var exportedCount = 0
+                for room in rooms {
+                    let roomDir = iCloudDrive.appendingPathComponent(room.name.replacingOccurrences(of: "/", with: "-"))
+                    try? FileManager.default.createDirectory(at: roomDir, withIntermediateDirectories: true)
+
+                    // Copy USDZ file
+                    let sourceUSDZ = RoomStorageManager.shared.getRoomFileURL(for: room, filename: "\(room.id.uuidString).usdz")
+                    let destUSDZ = roomDir.appendingPathComponent("\(room.name).usdz")
+                    try? FileManager.default.copyItem(at: sourceUSDZ, to: destUSDZ)
+
+                    // Copy floor plan
+                    let sourceFloorPlan = RoomStorageManager.shared.getRoomFileURL(for: room, filename: "\(room.id.uuidString)_floorplan.png")
+                    let destFloorPlan = roomDir.appendingPathComponent("FloorPlan.png")
+                    try? FileManager.default.copyItem(at: sourceFloorPlan, to: destFloorPlan)
+
+                    // Copy metadata as JSON
+                    let metadata = """
+                    {
+                        "name": "\(room.name)",
+                        "date": "\(room.date)",
+                        "walls": \(room.wallCount),
+                        "windows": \(room.windowCount),
+                        "doors": \(room.doorCount),
+                        "objects": \(room.objectCount)
+                    }
+                    """
+                    let metadataURL = roomDir.appendingPathComponent("metadata.json")
+                    try? metadata.write(to: metadataURL, atomically: true, encoding: .utf8)
+
+                    exportedCount += 1
+                }
+
+                // Dismiss progress and show success
+                await MainActor.run {
+                    progressAlert.dismiss(animated: true) {
+                        let successAlert = UIAlertController(
+                            title: L10n.Export.iCloudComplete.localized,
+                            message: L10n.Export.iCloudCompleteMessage.localized(exportedCount),
+                            preferredStyle: .alert
+                        )
+                        successAlert.addAction(UIAlertAction(title: L10n.Common.ok.localized, style: .default))
+                        self.present(successAlert, animated: true)
+                    }
+                }
+
+            } catch {
+                // Dismiss progress and show error
+                await MainActor.run {
+                    progressAlert.dismiss(animated: true) {
+                        let errorAlert = UIAlertController(
+                            title: L10n.Export.error.localized,
+                            message: error.localizedDescription,
+                            preferredStyle: .alert
+                        )
+                        errorAlert.addAction(UIAlertAction(title: L10n.Common.ok.localized, style: .default))
+                        self.present(errorAlert, animated: true)
+                    }
+                }
+            }
+        }
     }
 }
 
