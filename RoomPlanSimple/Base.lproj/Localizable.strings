@@ -17,21 +17,27 @@
 "common.loading" = "Loading...";
 
 // MARK: - Home Screen
-"home.title" = "RoomPlan";
-"home.header" = "3D Room Scanner";
-"home.newScan.title" = "Start New Scan";
-"home.newScan.subtitle" = "Scan a room with LiDAR";
+"home.title" = "SpatialSense Capture";
+"home.brandName" = "SpatialSense";
+"home.header" = "Capture spaces for your project";
+"home.subtitle" = "Scan rooms with LiDAR, review floor plans, and export models ready for SpatialSense.";
+"home.newScan.title" = "New Scan";
+"home.newScan.subtitle" = "Start a LiDAR room capture";
 "home.newScan.noLidar" = "Requires LiDAR scanner • View saved rooms instead";
-"home.savedRooms.title" = "Saved Rooms";
-"home.savedRooms.subtitle" = "View and manage your scans";
+"home.savedRooms.title" = "Saved Scans";
+"home.savedRooms.subtitle" = "Browse and manage captures";
 "home.savedRooms.count" = "%d saved %@";
-"home.savedRooms.room" = "room";
-"home.savedRooms.rooms" = "rooms";
-"home.help.title" = "Help & Features";
-"home.help.subtitle" = "Learn what you can do";
+"home.savedRooms.room" = "scan";
+"home.savedRooms.rooms" = "scans";
+"home.help.title" = "Help";
+"home.help.subtitle" = "Tips and feature guide";
 "home.recentScans" = "Recent Scans";
-"home.emptyState" = "No saved scans yet.\nStart your first scan above!";
+"home.viewAll" = "View all";
+"home.emptyStateTitle" = "No scans yet";
+"home.emptyState" = "Create your first room capture to build a SpatialSense-ready project library.";
 "home.features" = "Features";
+"home.scanStatus.ready" = "Ready";
+"home.scanStatus.local" = "Saved locally";
 
 // MARK: - Features List
 "feature.3dCapture.title" = "3D Room Capture";
@@ -58,25 +64,59 @@
 "scan.saving" = "Saving...";
 "scan.autoSaved" = "Auto-saved";
 "scan.saveSuccess" = "Room saved successfully!";
+"scan.started" = "Scanning started";
+"scan.failed" = "Scanning failed";
+"scan.endedWithError" = "Scan ended with error";
+"scan.noElementsDetected" = "No elements detected";
+"scan.photoCaptured" = "Photo captured";
+"scan.roomSaved" = "Room Saved";
+"scan.roomSavedMessage" = "\"%@\" saved successfully.\n\n%@";
 "scan.error.title" = "Scanning Error";
 "scan.error.sessionFailed" = "Scanning session failed";
 "scan.error.exportFailed" = "Failed to export room model";
 "scan.error.saveFailed" = "Failed to save room";
+"scan.error.noData" = "No room scan data available";
+"scan.error.deviceNotSupported" = "This device does not support room scanning";
+"scan.error.completeScanFirst" = "Please complete a room scan before exporting.";
+"scan.error.tryDifferentFormat" = "Try exporting again or use a different format.";
+"scan.error.adequateLighting" = "Ensure you have adequate lighting and try again.";
+"scan.error.slowerMovements" = "Try scanning the room again with slower movements.";
+"scan.error.requiresLidar" = "RoomPlan requires iPhone 12 Pro or later, or iPad Pro with LiDAR.";
 
 // MARK: - Saved Rooms
-"savedRooms.title" = "Saved Rooms";
-"savedRooms.empty" = "No saved rooms yet";
-"savedRooms.deleteConfirm.title" = "Delete Room?";
+"savedRooms.title" = "Saved Scans";
+"savedRooms.empty" = "Start a new scan from the home screen to populate this workspace.";
+"savedRooms.emptyTitle" = "No saved scans";
+"savedRooms.searchPlaceholder" = "Search scans";
+"savedRooms.sortNewest" = "Newest";
+"savedRooms.sortOldest" = "Oldest";
+"savedRooms.sortName" = "Name";
+"savedRooms.gridView" = "Grid view";
+"savedRooms.listView" = "List view";
+"savedRooms.noResults" = "No scans match your search.";
+"savedRooms.deleteConfirm.title" = "Delete Scan?";
 "savedRooms.deleteConfirm.message" = "Are you sure you want to delete \"%@\"?";
 "savedRooms.deleteConfirm.delete" = "Delete";
-"savedRooms.deleteSuccess" = "Room deleted";
-"savedRooms.deleteError" = "Failed to delete room";
+"savedRooms.deleteAll.title" = "Delete All Scans?";
+"savedRooms.deleteAll.message" = "This will permanently delete all %d saved scan(s).";
+"savedRooms.deleteAll.button" = "Delete All";
+"savedRooms.deleteSuccess" = "Scan deleted";
+"savedRooms.deleteError" = "Failed to delete scan";
+"savedRooms.selectRooms" = "Select Scans";
+"savedRooms.selectedCount" = "%d selected";
+"savedRooms.deleteSelected" = "Delete";
+"savedRooms.exportSelected" = "Export";
+"savedRooms.deleteSelected.title" = "Delete Selected Scans?";
+"savedRooms.deleteSelected.message" = "This will permanently delete %d selected scan(s).";
 "savedRooms.walls" = "%d walls";
 "savedRooms.doors" = "%d doors";
 "savedRooms.windows" = "%d windows";
 "savedRooms.objects" = "%d objects";
 "savedRooms.area" = "%.1f m²";
 "savedRooms.dimensions" = "%.1f × %.1f m";
+"savedRooms.roomNamePlaceholder" = "Room name";
+"savedRooms.saved" = "Saved";
+"savedRooms.savedCount" = "Saved (%d)";
 
 // MARK: - Room Viewer
 "viewer.title" = "Room Details";
@@ -103,18 +143,46 @@
 "viewer.info.objects" = "Objects";
 
 // MARK: - Export
-"export.title" = "Export Room";
+"export.title" = "Export Scan";
 "export.format" = "Format";
 "export.usdz" = "USDZ (3D Model)";
+"export.usdz.parametric" = "USDZ Parametric";
+"export.usdz.textured" = "USDZ Textured";
+"export.usdz.mesh" = "USDZ Mesh";
 "export.obj" = "OBJ (3D Model)";
 "export.stl" = "STL (3D Print)";
 "export.dxf" = "DXF (CAD Floor Plan)";
 "export.svg" = "SVG (Vector Floor Plan)";
+"export.ifc" = "IFC (BIM Model)";
+"export.formatDesc.ifc" = "Industry Foundation Classes — open BIM standard";
 "export.png" = "PNG (Floor Plan Image)";
+"export.complete" = "Complete Export (All Data)";
 "export.processing" = "Exporting...";
 "export.success" = "Exported successfully";
 "export.error" = "Export failed";
 "export.share" = "Share %@";
+"export.chooseExport" = "Choose what to export";
+"export.floorPlanImage" = "Export Floor Plan Image";
+"export.both" = "Export Both";
+"export.saveRoom" = "Save Scan";
+"export.viewFloorPlan" = "View Floor Plan";
+"export.chooseFormat" = "Choose an export format for SpatialSense or local use";
+"export.detectedSummary" = "Detected: %@";
+"export.toICloud" = "Export to iCloud Drive";
+"export.allToICloud" = "Export All to iCloud Drive";
+"export.toICloudMessage" = "This will copy all your saved rooms to iCloud Drive where they'll be visible in Finder on Mac.\n\nLocation: iCloud Drive → RoomPlanExport";
+"export.copyingToICloud" = "Copying rooms to iCloud Drive";
+"export.iCloudComplete" = "Export Complete";
+"export.iCloudCompleteMessage" = "Exported %d rooms to:\niCloud Drive → RoomPlanExport\n\nFiles will sync to your Mac shortly.";
+"export.tryAgain" = "Try Again";
+"export.pngImage" = "PNG Image";
+"export.svgVector" = "SVG (Vector Graphics)";
+"export.dxfCad" = "DXF (AutoCAD/CAD)";
+"export.formatDesc.parametric" = "Clean geometry with furniture shapes";
+"export.formatDesc.textured" = "Includes captured surface textures";
+"export.formatDesc.mesh" = "Raw 3D mesh data";
+"export.formatDesc.obj" = "Universal format for Blender, 3DS Max, Maya";
+"export.formatDesc.stl" = "Standard format for 3D printing";
 
 // MARK: - Settings
 "settings.title" = "Settings";
@@ -166,6 +234,8 @@
 "floorPlan.dimensions" = "Dimensions";
 "floorPlan.measurements" = "Show Measurements";
 "floorPlan.error" = "Failed to generate floor plan";
+"floorPlan.view" = "View Floor Plan";
+"floorPlan.notFound" = "Floor plan image not found";
 
 // MARK: - WiFi Heatmap
 "wifi.title" = "WiFi Heatmap";
@@ -175,6 +245,10 @@
 "wifi.fair" = "Fair";
 "wifi.poor" = "Poor";
 "wifi.noData" = "No WiFi data collected";
+"wifi.trackingTitle" = "WiFi Signal Tracking";
+"wifi.trackingMessage" = "To track WiFi signal strength during scanning, this app needs location permission. This data is stored locally and not shared.";
+"wifi.enable" = "Enable";
+"wifi.samples" = "%d samples";
 
 // MARK: - Onboarding
 "onboarding.welcome" = "Welcome to RoomPlan";
@@ -195,3 +269,79 @@
 "stats.objectCount" = "Object Count";
 "stats.floorArea" = "Floor Area";
 "stats.roomDimensions" = "Room Dimensions";
+
+// MARK: - Room Types
+"roomType.kitchen" = "Kitchen";
+"roomType.bedroom" = "Bedroom";
+"roomType.bathroom" = "Bathroom";
+"roomType.livingRoom" = "Living Room";
+"roomType.diningRoom" = "Dining Room";
+"roomType.office" = "Office";
+"roomType.unknown" = "Room";
+
+// MARK: - Help Content
+"help.tips" = "Pro Tips";
+"help.gettingStarted.content" = "This app uses your device's LiDAR scanner to create accurate 3D models of rooms.\n\nRequirements for Scanning:\n• iPhone 12 Pro or later\n• iPad Pro (2020 or later)\n• iOS 16.0 or later\n\nNote: You can view saved rooms on any device, even without LiDAR! Use iCloud to sync rooms across devices.";
+"help.icloudSetup.content" = "Enable iCloud sync to access your saved rooms on all your devices - even those without LiDAR!\n\nHow to Enable:\n1. Go to Settings (gear icon)\n2. Toggle \"iCloud Sync\" ON\n3. Your rooms will automatically sync\n\nRequirements:\n• Signed in to iCloud in iOS Settings\n• iCloud Drive enabled\n• Internet connection\n\nBenefits:\n• Access scans from non-LiDAR devices\n• Automatic backup of your scans\n• Share rooms across iPhone and iPad\n• View 3D models anywhere";
+"help.scanning.content" = "1. Tap \"Start New Scan\" on the home screen\n2. Point your device at a corner of the room\n3. Slowly move along each wall, keeping the wall in view\n4. Scan all walls, windows, doors, and openings\n5. Include furniture and objects you want to capture\n6. Watch the bottom preview to see your progress\n7. Tap \"Done\" when the room looks complete\n\nTips for Best Results:\n• Keep your device upright\n• Move slowly and steadily\n• Ensure good lighting\n• Scan each wall at least once\n• Get close to details you want captured";
+"help.exporting.content" = "After completing a scan, you can export it in multiple formats:\n\n3D Model Formats:\n• USDZ - Best for Apple devices, AR Quick Look\n• OBJ - Universal 3D format for modeling software\n• STL - For 3D printing applications\n\nFloor Plan Formats:\n• PNG - Image for quick sharing\n• SVG - Vector format for graphic design\n• DXF - CAD format for architects/designers\n\nTo export:\n1. Complete your scan or open a saved room\n2. Tap the export button\n3. Choose your format\n4. Share via AirDrop, email, or save to Files\n\nAll measurements are included in the exported files.";
+
+// Help Features
+"help.feature.3d.title" = "3D Room Capture";
+"help.feature.3d.description" = "Create accurate 3D models with LiDAR technology. The app automatically detects walls, windows, doors, and furniture.";
+"help.feature.wifi.title" = "WiFi Heatmap";
+"help.feature.wifi.description" = "Enable WiFi tracking during scanning to create a signal strength heatmap. Perfect for planning router placement. Requires location permission.";
+"help.feature.photo.title" = "Photo Capture";
+"help.feature.photo.description" = "Take photos during scanning to document the space. Photos are saved with your scan and shown on the floor plan.";
+"help.feature.export.title" = "Multiple Export Formats";
+"help.feature.export.description" = "Export your scans in various formats:\n• USDZ - 3D model for AR/Preview\n• OBJ - 3D model for CAD software\n• STL - 3D model for 3D printing\n• DXF - Floor plan for CAD\n• SVG - Floor plan vector\n• PNG - Floor plan image";
+"help.feature.icloud.title" = "iCloud Sync (Optional)";
+"help.feature.icloud.description" = "Enable in Settings to sync your scans across all your devices. When enabled, scans are stored in iCloud Drive and available on all devices signed in with your Apple ID.";
+
+// Help Tips
+"help.tip.lighting.title" = "Lighting is Key";
+"help.tip.lighting.description" = "Scan in good lighting conditions. Natural daylight or bright indoor lighting works best. Avoid very dark or very bright areas.";
+"help.tip.slow.title" = "Slow and Steady";
+"help.tip.slow.description" = "Move slowly and smoothly. Rapid movements or shaking can affect scan quality. Take your time for best results.";
+"help.tip.retry.title" = "Scan Multiple Times";
+"help.tip.retry.description" = "If you're not happy with the first scan, try again! Each room is different and sometimes it takes a few attempts to get it perfect.";
+"help.tip.save.title" = "Save Everything";
+"help.tip.save.description" = "Enable auto-save in Settings so you never lose a scan. You can always delete unwanted scans later.";
+"help.tip.measure.title" = "Check Measurements";
+"help.tip.measure.description" = "After scanning, tap to view floor plan and verify measurements look correct. The app shows dimensions in meters or feet.";
+
+// Help Troubleshooting
+"help.trouble.notStarting.title" = "Scan Not Starting";
+"help.trouble.notStarting.description" = "Ensure you have a LiDAR-enabled device (iPhone 12 Pro or later, iPad Pro 2020+). Check that camera permissions are granted in Settings → Privacy → Camera.";
+"help.trouble.poorQuality.title" = "Poor Scan Quality";
+"help.trouble.poorQuality.description" = "Try these fixes:\n• Improve room lighting\n• Move more slowly\n• Get closer to walls and objects\n• Scan each wall multiple times\n• Clear obstructions from camera lens";
+"help.trouble.disappeared.title" = "Scans Disappeared";
+"help.trouble.disappeared.description" = "If scans are missing after updating the app:\n• Check Settings → iCloud Sync\n• Scans are now stored in Application Support\n• Old scans may be in Documents folder";
+"help.trouble.wifi.title" = "WiFi Heatmap Not Working";
+"help.trouble.wifi.description" = "WiFi tracking requires:\n• Location permission (Settings → Privacy → Location)\n• WiFi enabled on device\n• Connected to a WiFi network\n• Toggle ON in scan screen or Settings";
+
+// MARK: - Object Types
+"object.bed" = "Bed";
+"object.toilet" = "Toilet";
+"object.bathtub" = "Bathtub";
+"object.sink" = "Sink";
+"object.refrigerator" = "Refrigerator";
+"object.fridge" = "Fridge";
+"object.stove" = "Stove";
+"object.oven" = "Oven";
+"object.dishwasher" = "Dishwasher";
+"object.sofa" = "Sofa";
+"object.television" = "Television";
+"object.tv" = "TV";
+"object.fireplace" = "Fireplace";
+"object.table" = "Table";
+"object.chair" = "Chair";
+"object.storage" = "Storage";
+"object.washerDryer" = "Washer/Dryer";
+"object.washer" = "Washer";
+"object.stairs" = "Stairs";
+"object.unknown" = "Object";
+"object.unknownObject" = "Unknown Object";
+
+// MARK: - Floor Plan Export
+"floorPlan.export" = "Export Floor Plan";

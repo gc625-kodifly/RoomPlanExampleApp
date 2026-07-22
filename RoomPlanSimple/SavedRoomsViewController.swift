@@ -2,25 +2,49 @@
 See LICENSE folder for this sample's licensing information.
 
 Abstract:
-View controller for displaying and managing saved room scans.
+SpatialSense-styled browse workspace for saved room scans.
 */
 
 import UIKit
+import RoomPlan
 
 class SavedRoomsViewController: UIViewController {
 
+    // MARK: - Types
+
+    private enum SortMode: Int {
+        case newest
+        case oldest
+        case name
+    }
+
+    private enum ViewMode: Int {
+        case list
+        case grid
+    }
+
     // MARK: - Properties
 
-    private let tableView = UITableView(frame: .zero, style: .insetGrouped)
-    private var savedRooms: [SavedRoom] = []
-    private var selectedRooms: Set<IndexPath> = []
+    private var allRooms: [SavedRoom] = []
+    private var filteredRooms: [SavedRoom] = []
+    private var selectedRoomIDs: Set<UUID> = []
     private var isSelectMode = false
+    private var sortMode: SortMode = .newest
+    private var viewMode: ViewMode = .grid
+    private var searchQuery = ""
 
-    private lazy var toolbar: UIToolbar = {
-        let toolbar = UIToolbar()
-        toolbar.translatesAutoresizingMaskIntoConstraints = false
-        return toolbar
-    }()
+    private let searchBar = UISearchBar()
+    private let toolbarRow = UIStackView()
+    private let sortButton = UIButton(type: .system)
+    private let viewModeControl = UISegmentedControl(items: [
+        UIImage(systemName: "list.bullet") ?? UIImage(),
+        UIImage(systemName: "square.grid.2x2") ?? UIImage()
+    ])
+    private let scrollView = UIScrollView()
+    private let contentStack = UIStackView()
+    private let emptyLabel = UILabel()
+    private let selectionToolbar = UIToolbar()
+    private var selectionToolbarHeight: NSLayoutConstraint?
 
     // MARK: - Lifecycle
 
@@ -28,17 +52,12 @@ class SavedRoomsViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
 
-        // Trigger migration on first load if iCloud is enabled
         if AppSettings.shared.iCloudSyncEnabled {
             Task {
                 do {
                     let migratedCount = try RoomStorageManager.shared.migrateToICloud()
                     if migratedCount > 0 {
-                        print("✅ Auto-migrated \(migratedCount) files on startup")
-                        // Reload after migration
-                        DispatchQueue.main.async {
-                            self.loadSavedRooms()
-                        }
+                        await MainActor.run { self.loadSavedRooms() }
                     }
                 } catch {
                     print("⚠️ Auto-migration failed: \(error)")
@@ -49,6 +68,9 @@ class SavedRoomsViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        if let navBar = navigationController?.navigationBar {
+            SpatialSenseTheme.configureNavigationBar(navBar, immersive: true)
+        }
         loadSavedRooms()
     }
 
@@ -56,36 +78,133 @@ class SavedRoomsViewController: UIViewController {
 
     private func setupUI() {
         title = L10n.SavedRooms.title.localized
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = SpatialSenseTheme.Color.studioBackground
+        overrideUserInterfaceStyle = .dark
+        navigationItem.largeTitleDisplayMode = .never
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,
             target: self,
             action: #selector(dismissView)
         )
-
         updateNavigationButtons()
 
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.delegate = self
-        tableView.dataSource = self
-        tableView.allowsMultipleSelectionDuringEditing = true
-        tableView.register(SavedRoomCell.self, forCellReuseIdentifier: SavedRoomCell.reuseIdentifier)
-        view.addSubview(tableView)
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
+        searchBar.placeholder = L10n.SavedRooms.searchPlaceholder.localized
+        searchBar.searchBarStyle = .minimal
+        searchBar.delegate = self
+        searchBar.accessibilityIdentifier = "savedRooms.search"
+        searchBar.searchTextField.backgroundColor = SpatialSenseTheme.Color.studioSurfaceRaised
+        searchBar.searchTextField.textColor = .white
+        searchBar.searchTextField.tintColor = SpatialSenseTheme.Color.primary
+        searchBar.searchTextField.leftView?.tintColor = UIColor.white.withAlphaComponent(0.45)
+        view.addSubview(searchBar)
 
-        view.addSubview(toolbar)
-        toolbar.isHidden = true
+        configureToolbarRow()
+        view.addSubview(toolbarRow)
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
+        view.addSubview(scrollView)
+
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        contentStack.axis = .vertical
+        contentStack.spacing = SpatialSenseTheme.Space.md
+        scrollView.addSubview(contentStack)
+
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        emptyLabel.font = SpatialSenseTheme.Font.body
+        emptyLabel.textColor = UIColor.white.withAlphaComponent(0.48)
+        emptyLabel.textAlignment = .center
+        emptyLabel.numberOfLines = 0
+        emptyLabel.isHidden = true
+        view.addSubview(emptyLabel)
+
+        selectionToolbar.translatesAutoresizingMaskIntoConstraints = false
+        selectionToolbar.isHidden = true
+        selectionToolbar.barStyle = .black
+        view.addSubview(selectionToolbar)
+
+        let toolbarHeight = selectionToolbar.heightAnchor.constraint(equalToConstant: 0)
+        selectionToolbarHeight = toolbarHeight
 
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            searchBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.sm),
+            searchBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.sm),
 
-            toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            toolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            toolbarRow.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: SpatialSenseTheme.Space.sm),
+            toolbarRow.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            toolbarRow.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            toolbarRow.heightAnchor.constraint(equalToConstant: SpatialSenseTheme.Size.toolbarControl),
+
+            scrollView.topAnchor.constraint(equalTo: toolbarRow.bottomAnchor, constant: SpatialSenseTheme.Space.md),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: selectionToolbar.topAnchor),
+
+            contentStack.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            contentStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            contentStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -SpatialSenseTheme.Space.lg),
+            contentStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -SpatialSenseTheme.Space.xl),
+
+            emptyLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            emptyLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.xl),
+            emptyLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.xl),
+
+            selectionToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            selectionToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            selectionToolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            toolbarHeight
         ])
+    }
+
+    private func configureToolbarRow() {
+        toolbarRow.translatesAutoresizingMaskIntoConstraints = false
+        toolbarRow.axis = .horizontal
+        toolbarRow.alignment = .center
+        toolbarRow.spacing = SpatialSenseTheme.Space.sm
+        toolbarRow.distribution = .fill
+
+        sortButton.configuration = SpatialSenseTheme.secondaryButtonConfiguration(
+            title: L10n.SavedRooms.sortNewest.localized,
+            icon: "arrow.up.arrow.down"
+        )
+        sortButton.configuration?.baseForegroundColor = .white
+        sortButton.configuration?.background.backgroundColor = SpatialSenseTheme.Color.studioSurfaceRaised
+        sortButton.configuration?.background.strokeColor = SpatialSenseTheme.Color.studioBorder
+        sortButton.menu = UIMenu(children: [
+            UIAction(title: L10n.SavedRooms.sortNewest.localized) { [weak self] _ in
+                self?.sortMode = .newest
+                self?.applyFiltersAndReload()
+            },
+            UIAction(title: L10n.SavedRooms.sortOldest.localized) { [weak self] _ in
+                self?.sortMode = .oldest
+                self?.applyFiltersAndReload()
+            },
+            UIAction(title: L10n.SavedRooms.sortName.localized) { [weak self] _ in
+                self?.sortMode = .name
+                self?.applyFiltersAndReload()
+            }
+        ])
+        sortButton.showsMenuAsPrimaryAction = true
+
+        viewModeControl.selectedSegmentIndex = 1
+        viewModeControl.addTarget(self, action: #selector(viewModeChanged), for: .valueChanged)
+        viewModeControl.backgroundColor = SpatialSenseTheme.Color.studioSurfaceRaised
+        viewModeControl.selectedSegmentTintColor = SpatialSenseTheme.Color.primary
+        viewModeControl.setTitleTextAttributes([.foregroundColor: UIColor.white], for: .selected)
+        viewModeControl.setContentHuggingPriority(.required, for: .horizontal)
+        viewModeControl.accessibilityLabel = L10n.SavedRooms.listView.localized
+
+        let spacer = UIView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        toolbarRow.addArrangedSubview(sortButton)
+        toolbarRow.addArrangedSubview(spacer)
+        toolbarRow.addArrangedSubview(viewModeControl)
     }
 
     private func updateNavigationButtons() {
@@ -103,21 +222,26 @@ class SavedRoomsViewController: UIViewController {
                 target: self,
                 action: #selector(toggleSelectMode)
             )
-
-            navigationItem.rightBarButtonItem = selectButton
-            selectButton.isEnabled = !savedRooms.isEmpty
+            selectButton.isEnabled = !allRooms.isEmpty
+            let addButton = UIBarButtonItem(
+                image: UIImage(systemName: "plus.circle.fill"),
+                style: .plain,
+                target: self,
+                action: #selector(startNewScan)
+            )
+            addButton.accessibilityLabel = L10n.Home.NewScan.title.localized
+            navigationItem.rightBarButtonItems = [addButton, selectButton]
         }
     }
 
-    private func updateToolbar() {
-        let selectedCount = selectedRooms.count
-
+    private func updateSelectionToolbar() {
+        let selectedCount = selectedRoomIDs.count
         let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
 
         let countLabel = UILabel()
         countLabel.text = L10n.SavedRooms.selectedCount.localized(selectedCount)
-        countLabel.font = .systemFont(ofSize: 14)
-        countLabel.textColor = .secondaryLabel
+        countLabel.font = SpatialSenseTheme.Font.caption
+        countLabel.textColor = SpatialSenseTheme.Color.adaptiveSecondaryText
         let countItem = UIBarButtonItem(customView: countLabel)
 
         let deleteButton = UIBarButtonItem(
@@ -126,7 +250,7 @@ class SavedRoomsViewController: UIViewController {
             target: self,
             action: #selector(deleteSelectedRooms)
         )
-        deleteButton.tintColor = .systemRed
+        deleteButton.tintColor = SpatialSenseTheme.Color.destructive
         deleteButton.isEnabled = selectedCount > 0
 
         let exportButton = UIBarButtonItem(
@@ -137,16 +261,145 @@ class SavedRoomsViewController: UIViewController {
         )
         exportButton.isEnabled = selectedCount > 0
 
-        toolbar.setItems([deleteButton, flexSpace, countItem, flexSpace, exportButton], animated: true)
+        selectionToolbar.setItems([deleteButton, flexSpace, countItem, flexSpace, exportButton], animated: true)
     }
 
+    // MARK: - Data
+
     private func loadSavedRooms() {
-        savedRooms = RoomStorageManager.shared.getSavedRooms()
-        tableView.reloadData()
+        allRooms = RoomStorageManager.shared.getSavedRooms()
+        applyFiltersAndReload()
         updateNavigationButtons()
     }
 
+    private func applyFiltersAndReload() {
+        var rooms = allRooms
+
+        if !searchQuery.isEmpty {
+            rooms = rooms.filter {
+                $0.name.localizedCaseInsensitiveContains(searchQuery)
+                || $0.summary.localizedCaseInsensitiveContains(searchQuery)
+                || ($0.notes?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+            }
+        }
+
+        switch sortMode {
+        case .newest:
+            rooms.sort { $0.date > $1.date }
+        case .oldest:
+            rooms.sort { $0.date < $1.date }
+        case .name:
+            rooms.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+
+        filteredRooms = rooms
+        updateSortButtonTitle()
+        renderRooms()
+    }
+
+    private func updateSortButtonTitle() {
+        let title: String
+        switch sortMode {
+        case .newest: title = L10n.SavedRooms.sortNewest.localized
+        case .oldest: title = L10n.SavedRooms.sortOldest.localized
+        case .name: title = L10n.SavedRooms.sortName.localized
+        }
+        let existingMenu = sortButton.menu
+        sortButton.configuration = SpatialSenseTheme.secondaryButtonConfiguration(
+            title: title,
+            icon: "arrow.up.arrow.down"
+        )
+        sortButton.configuration?.baseForegroundColor = .white
+        sortButton.configuration?.background.backgroundColor = SpatialSenseTheme.Color.studioSurfaceRaised
+        sortButton.configuration?.background.strokeColor = SpatialSenseTheme.Color.studioBorder
+        sortButton.menu = existingMenu
+        sortButton.showsMenuAsPrimaryAction = true
+    }
+
+    private func renderRooms() {
+        contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        if filteredRooms.isEmpty {
+            emptyLabel.isHidden = false
+            emptyLabel.text = allRooms.isEmpty
+                ? "\(L10n.SavedRooms.emptyTitle.localized)\n\(L10n.SavedRooms.empty.localized)"
+                : L10n.SavedRooms.noResults.localized
+            return
+        }
+
+        emptyLabel.isHidden = true
+
+        if viewMode == .list {
+            for room in filteredRooms {
+                contentStack.addArrangedSubview(makeCard(for: room))
+            }
+        } else {
+            var index = 0
+            while index < filteredRooms.count {
+                let row = UIStackView()
+                row.axis = .horizontal
+                row.spacing = SpatialSenseTheme.Space.md
+                row.distribution = .fillEqually
+
+                let first = makeCard(for: filteredRooms[index])
+                row.addArrangedSubview(first)
+
+                if index + 1 < filteredRooms.count {
+                    row.addArrangedSubview(makeCard(for: filteredRooms[index + 1]))
+                } else {
+                    let spacer = UIView()
+                    row.addArrangedSubview(spacer)
+                }
+
+                contentStack.addArrangedSubview(row)
+                index += 2
+            }
+        }
+    }
+
+    private func makeCard(for room: SavedRoom) -> ScanCardView {
+        let card = ScanCardView()
+        card.configure(
+            with: room,
+            statusText: L10n.Home.ScanStatus.local.localized,
+            showsOverflow: !isSelectMode
+        )
+        card.setSelectedStyle(selectedRoomIDs.contains(room.id))
+
+        card.onTap = { [weak self] in
+            guard let self else { return }
+            if self.isSelectMode {
+                if self.selectedRoomIDs.contains(room.id) {
+                    self.selectedRoomIDs.remove(room.id)
+                } else {
+                    self.selectedRoomIDs.insert(room.id)
+                }
+                self.updateSelectionToolbar()
+                self.renderRooms()
+            } else {
+                self.openRoom(room)
+            }
+        }
+
+        card.onOverflow = { [weak self] in
+            self?.showRoomMenu(for: room)
+        }
+
+        return card
+    }
+
     // MARK: - Actions
+
+    @objc private func startNewScan() {
+        guard RoomCaptureSession.isSupported else { return }
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        guard let controller = storyboard.instantiateViewController(
+            withIdentifier: "RoomCaptureViewNavigationController"
+        ) as? UINavigationController else { return }
+        SpatialSenseTheme.configureNavigationBar(controller.navigationBar, immersive: true)
+        controller.modalPresentationStyle = .fullScreen
+        present(controller, animated: true)
+    }
 
     @objc private func dismissView() {
         if isSelectMode {
@@ -158,71 +411,133 @@ class SavedRoomsViewController: UIViewController {
 
     @objc private func toggleSelectMode() {
         isSelectMode.toggle()
-        selectedRooms.removeAll()
-
-        tableView.setEditing(isSelectMode, animated: true)
-        toolbar.isHidden = !isSelectMode
-
-        if isSelectMode {
-            tableView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: toolbar.frame.height, right: 0)
-        } else {
-            tableView.contentInset = .zero
-        }
-
+        selectedRoomIDs.removeAll()
+        selectionToolbar.isHidden = !isSelectMode
+        selectionToolbarHeight?.constant = isSelectMode ? 44 : 0
         updateNavigationButtons()
-        updateToolbar()
-        tableView.reloadData()
+        updateSelectionToolbar()
+        renderRooms()
+    }
+
+    @objc private func viewModeChanged() {
+        viewMode = viewModeControl.selectedSegmentIndex == 0 ? .list : .grid
+        viewModeControl.accessibilityLabel = viewMode == .list
+            ? L10n.SavedRooms.listView.localized
+            : L10n.SavedRooms.gridView.localized
+        renderRooms()
     }
 
     @objc private func deleteSelectedRooms() {
-        guard !selectedRooms.isEmpty else { return }
-
-        let count = selectedRooms.count
+        guard !selectedRoomIDs.isEmpty else { return }
+        let count = selectedRoomIDs.count
         let alert = UIAlertController(
             title: L10n.SavedRooms.DeleteSelected.title.localized,
             message: L10n.SavedRooms.DeleteSelected.message.localized(count),
             preferredStyle: .alert
         )
-
         alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
         alert.addAction(UIAlertAction(title: L10n.Common.delete.localized, style: .destructive) { [weak self] _ in
             self?.performBatchDelete()
         })
-
         present(alert, animated: true)
     }
 
     private func performBatchDelete() {
-        let sortedIndexPaths = selectedRooms.sorted().reversed()
-
-        for indexPath in sortedIndexPaths {
-            let room = savedRooms[indexPath.row]
+        let roomsToDelete = allRooms.filter { selectedRoomIDs.contains($0.id) }
+        for room in roomsToDelete {
             try? RoomStorageManager.shared.deleteRoom(room)
-            savedRooms.remove(at: indexPath.row)
         }
-
-        tableView.deleteRows(at: Array(sortedIndexPaths), with: .automatic)
-        selectedRooms.removeAll()
-
-        if savedRooms.isEmpty {
+        selectedRoomIDs.removeAll()
+        loadSavedRooms()
+        if allRooms.isEmpty && isSelectMode {
             toggleSelectMode()
         } else {
-            updateToolbar()
+            updateSelectionToolbar()
         }
     }
 
     @objc private func exportSelectedRooms() {
-        guard !selectedRooms.isEmpty else { return }
-
-        let roomsToExport = selectedRooms.map { savedRooms[$0.row] }
-
+        let roomsToExport = allRooms.filter { selectedRoomIDs.contains($0.id) }
+        guard !roomsToExport.isEmpty else { return }
         do {
-            // Use batch export with all photos, SVG floor plans, WiFi data
             let exportURL = try RoomStorageManager.shared.exportMultipleRooms(roomsToExport)
             shareItems([exportURL])
         } catch {
             showError("Failed to export rooms: \(error.localizedDescription)")
         }
+    }
+
+    private func openRoom(_ room: SavedRoom) {
+        let viewerVC = RoomViewerViewController(savedRoom: room)
+        let navController = UINavigationController(rootViewController: viewerVC)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: true)
+        navController.modalPresentationStyle = .fullScreen
+        present(navController, animated: true)
+    }
+
+    private func showRoomMenu(for room: SavedRoom) {
+        let alert = UIAlertController(title: room.name, message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: L10n.FloorPlan.view.localized, style: .default) { [weak self] _ in
+            self?.openRoom(room)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.edit.localized, style: .default) { [weak self] _ in
+            self?.editRoom(room)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.share.localized, style: .default) { [weak self] _ in
+            self?.showExportOptions(for: room)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.delete.localized, style: .destructive) { [weak self] _ in
+            self?.confirmDelete(room)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+        }
+        present(alert, animated: true)
+    }
+
+    private func confirmDelete(_ room: SavedRoom) {
+        let alert = UIAlertController(
+            title: L10n.SavedRooms.DeleteConfirm.title.localized,
+            message: L10n.SavedRooms.DeleteConfirm.message.localized(room.name),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.delete.localized, style: .destructive) { [weak self] _ in
+            try? RoomStorageManager.shared.deleteRoom(room)
+            self?.loadSavedRooms()
+        })
+        present(alert, animated: true)
+    }
+
+    private func editRoom(_ room: SavedRoom) {
+        let alert = UIAlertController(title: L10n.Common.edit.localized, message: nil, preferredStyle: .alert)
+        alert.addTextField { textField in
+            textField.text = room.name
+            textField.placeholder = L10n.SavedRooms.roomNamePlaceholder.localized
+        }
+        alert.addTextField { textField in
+            textField.text = room.notes
+            textField.placeholder = "Notes (optional)"
+        }
+        alert.addAction(UIAlertAction(title: L10n.Common.save.localized, style: .default) { [weak self, weak alert] _ in
+            guard let self,
+                  let nameField = alert?.textFields?[0],
+                  let notesField = alert?.textFields?[1] else { return }
+            var updatedRoom = room
+            updatedRoom.name = nameField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? room.name
+            updatedRoom.notes = notesField.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if updatedRoom.notes?.isEmpty == true { updatedRoom.notes = nil }
+            do {
+                try RoomStorageManager.shared.updateRoom(updatedRoom)
+                self.loadSavedRooms()
+            } catch {
+                self.showError("Failed to update room: \(error.localizedDescription)")
+            }
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        present(alert, animated: true)
     }
 
     private func showExportOptions(for room: SavedRoom) {
@@ -232,57 +547,37 @@ class SavedRoomsViewController: UIViewController {
             preferredStyle: .actionSheet
         )
 
-        // Export USDZ (3D Model)
         let usdzURL = RoomStorageManager.shared.getUsdzURL(for: room)
         if FileManager.default.fileExists(atPath: usdzURL.path) {
             alert.addAction(UIAlertAction(title: L10n.Export.usdz.localized, style: .default) { [weak self] _ in
                 self?.shareItems([usdzURL])
             })
-        }
-
-        // Export OBJ (3D Model)
-        if FileManager.default.fileExists(atPath: usdzURL.path) {
             alert.addAction(UIAlertAction(title: L10n.Export.obj.localized, style: .default) { [weak self] _ in
                 self?.exportAndShare(room: room, format: .obj)
             })
-        }
-
-        // Export STL (3D Print)
-        if FileManager.default.fileExists(atPath: usdzURL.path) {
             alert.addAction(UIAlertAction(title: L10n.Export.stl.localized, style: .default) { [weak self] _ in
                 self?.exportAndShare(room: room, format: .stl)
             })
-        }
-
-        // Export SVG (Floor Plan Vector)
-        if RoomStorageManager.shared.loadFloorPlanData(for: room) != nil {
-            alert.addAction(UIAlertAction(title: L10n.Export.svg.localized, style: .default) { [weak self] _ in
-                self?.exportAndShare(room: room, format: .svg)
-            })
-        }
-
-        // Export DXF (CAD Floor Plan)
-        if RoomStorageManager.shared.loadFloorPlanData(for: room) != nil {
-            alert.addAction(UIAlertAction(title: L10n.Export.dxf.localized, style: .default) { [weak self] _ in
-                self?.exportAndShare(room: room, format: .dxf)
-            })
-        }
-
-        // Export IFC (BIM Model)
-        if FileManager.default.fileExists(atPath: usdzURL.path) {
             alert.addAction(UIAlertAction(title: L10n.Export.ifc.localized, style: .default) { [weak self] _ in
                 self?.exportAndShare(room: room, format: .ifc)
             })
         }
 
-        // Export Floor Plan Image (PNG)
+        if RoomStorageManager.shared.loadFloorPlanData(for: room) != nil {
+            alert.addAction(UIAlertAction(title: L10n.Export.svg.localized, style: .default) { [weak self] _ in
+                self?.exportAndShare(room: room, format: .svg)
+            })
+            alert.addAction(UIAlertAction(title: L10n.Export.dxf.localized, style: .default) { [weak self] _ in
+                self?.exportAndShare(room: room, format: .dxf)
+            })
+        }
+
         if let floorPlanImage = RoomStorageManager.shared.getFloorPlanImage(for: room) {
             alert.addAction(UIAlertAction(title: L10n.Export.png.localized, style: .default) { [weak self] _ in
                 self?.shareItems([floorPlanImage])
             })
         }
 
-        // Export Both USDZ + Floor Plan
         if FileManager.default.fileExists(atPath: usdzURL.path),
            let floorPlanImage = RoomStorageManager.shared.getFloorPlanImage(for: room) {
             alert.addAction(UIAlertAction(title: L10n.Export.both.localized, style: .default) { [weak self] _ in
@@ -290,7 +585,6 @@ class SavedRoomsViewController: UIViewController {
             })
         }
 
-        // View Floor Plan
         if room.hasFloorPlan {
             alert.addAction(UIAlertAction(title: L10n.FloorPlan.view.localized, style: .default) { [weak self] _ in
                 self?.showFloorPlanPreview(for: room)
@@ -298,21 +592,15 @@ class SavedRoomsViewController: UIViewController {
         }
 
         alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
-
         alert.popoverPresentationController?.sourceView = view
         present(alert, animated: true)
     }
 
     private enum ExportFormat {
-        case obj
-        case stl
-        case svg
-        case dxf
-        case ifc
+        case obj, stl, svg, dxf, ifc
     }
 
     private func exportAndShare(room: SavedRoom, format: ExportFormat) {
-        // Show loading indicator
         let loadingAlert = UIAlertController(title: L10n.Export.processing.localized, message: nil, preferredStyle: .alert)
         present(loadingAlert, animated: true)
 
@@ -320,18 +608,12 @@ class SavedRoomsViewController: UIViewController {
             do {
                 let fileURL: URL
                 switch format {
-                case .obj:
-                    fileURL = try RoomStorageManager.shared.exportToOBJ(for: room)
-                case .stl:
-                    fileURL = try RoomStorageManager.shared.exportToSTL(for: room)
-                case .svg:
-                    fileURL = try RoomStorageManager.shared.exportToSVG(for: room)
-                case .dxf:
-                    fileURL = try RoomStorageManager.shared.exportToDXF(for: room)
-                case .ifc:
-                    fileURL = try RoomStorageManager.shared.exportToIFC(for: room)
+                case .obj: fileURL = try RoomStorageManager.shared.exportToOBJ(for: room)
+                case .stl: fileURL = try RoomStorageManager.shared.exportToSTL(for: room)
+                case .svg: fileURL = try RoomStorageManager.shared.exportToSVG(for: room)
+                case .dxf: fileURL = try RoomStorageManager.shared.exportToDXF(for: room)
+                case .ifc: fileURL = try RoomStorageManager.shared.exportToIFC(for: room)
                 }
-
                 loadingAlert.dismiss(animated: true) {
                     self.shareItems([fileURL])
                 }
@@ -354,17 +636,10 @@ class SavedRoomsViewController: UIViewController {
             showError(L10n.FloorPlan.notFound.localized)
             return
         }
-
         let previewVC = FloorPlanPreviewViewController(image: image, roomName: room.name)
         let navController = UINavigationController(rootViewController: previewVC)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: true)
         present(navController, animated: true)
-    }
-
-    private func deleteRoom(_ room: SavedRoom, at indexPath: IndexPath) {
-        try? RoomStorageManager.shared.deleteRoom(room)
-        savedRooms.remove(at: indexPath.row)
-        tableView.deleteRows(at: [indexPath], with: .automatic)
-        updateNavigationButtons()
     }
 
     private func showError(_ message: String) {
@@ -374,195 +649,16 @@ class SavedRoomsViewController: UIViewController {
     }
 }
 
-// MARK: - UITableViewDataSource
+// MARK: - UISearchBarDelegate
 
-extension SavedRoomsViewController: UITableViewDataSource {
-
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        savedRooms.count
+extension SavedRoomsViewController: UISearchBarDelegate {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        searchQuery = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        applyFiltersAndReload()
     }
 
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: SavedRoomCell.reuseIdentifier, for: indexPath) as! SavedRoomCell
-        cell.configure(with: savedRooms[indexPath.row])
-        return cell
-    }
-}
-
-// MARK: - UITableViewDelegate
-
-extension SavedRoomsViewController: UITableViewDelegate {
-
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        if isSelectMode {
-            selectedRooms.insert(indexPath)
-            updateToolbar()
-        } else {
-            tableView.deselectRow(at: indexPath, animated: true)
-            let room = savedRooms[indexPath.row]
-            let viewerVC = RoomViewerViewController(savedRoom: room)
-            let navController = UINavigationController(rootViewController: viewerVC)
-            navController.modalPresentationStyle = .fullScreen
-            present(navController, animated: true)
-        }
-    }
-
-    func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath) {
-        if isSelectMode {
-            selectedRooms.remove(indexPath)
-            updateToolbar()
-        }
-    }
-
-    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        guard !isSelectMode else { return nil }
-
-        let deleteAction = UIContextualAction(style: .destructive, title: L10n.Common.delete.localized) { [weak self] _, _, completion in
-            guard let self = self else { return }
-            self.deleteRoom(self.savedRooms[indexPath.row], at: indexPath)
-            completion(true)
-        }
-
-        let editAction = UIContextualAction(style: .normal, title: L10n.Common.edit.localized) { [weak self] _, _, completion in
-            guard let self = self else { return }
-            self.editRoom(self.savedRooms[indexPath.row])
-            completion(true)
-        }
-        editAction.backgroundColor = .systemBlue
-
-        return UISwipeActionsConfiguration(actions: [deleteAction, editAction])
-    }
-
-    private func editRoom(_ room: SavedRoom) {
-        let alert = UIAlertController(title: L10n.Common.edit.localized, message: nil, preferredStyle: .alert)
-
-        // Add name text field
-        alert.addTextField { textField in
-            textField.text = room.name
-            textField.placeholder = L10n.SavedRooms.roomNamePlaceholder.localized
-        }
-
-        // Add notes text field
-        alert.addTextField { textField in
-            textField.text = room.notes
-            textField.placeholder = "Notes (optional)"
-        }
-
-        // Save action
-        alert.addAction(UIAlertAction(title: L10n.Common.save.localized, style: .default) { [weak self, weak alert] _ in
-            guard let self = self,
-                  let nameField = alert?.textFields?[0],
-                  let notesField = alert?.textFields?[1] else { return }
-
-            var updatedRoom = room
-            updatedRoom.name = nameField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? room.name
-            updatedRoom.notes = notesField.text?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if updatedRoom.notes?.isEmpty == true {
-                updatedRoom.notes = nil
-            }
-
-            do {
-                try RoomStorageManager.shared.updateRoom(updatedRoom)
-                self.loadSavedRooms() // Reload to show changes
-            } catch {
-                self.showError("Failed to update room: \(error.localizedDescription)")
-            }
-        })
-
-        // Cancel action
-        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
-
-        present(alert, animated: true)
-    }
-}
-
-// MARK: - SavedRoomCell
-
-class SavedRoomCell: UITableViewCell {
-
-    static let reuseIdentifier = "SavedRoomCell"
-
-    private let thumbnailImageView = UIImageView()
-    private let nameLabel = UILabel()
-    private let dateLabel = UILabel()
-    private let summaryLabel = UILabel()
-    private let dimensionsLabel = UILabel()
-
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: .default, reuseIdentifier: reuseIdentifier)
-        accessoryType = .disclosureIndicator
-        setupCustomLayout()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    private func setupCustomLayout() {
-        // Thumbnail
-        thumbnailImageView.translatesAutoresizingMaskIntoConstraints = false
-        thumbnailImageView.contentMode = .scaleAspectFit
-        thumbnailImageView.backgroundColor = .secondarySystemBackground
-        thumbnailImageView.layer.cornerRadius = 8
-        thumbnailImageView.clipsToBounds = true
-        contentView.addSubview(thumbnailImageView)
-
-        // Labels stack
-        let labelsStack = UIStackView()
-        labelsStack.translatesAutoresizingMaskIntoConstraints = false
-        labelsStack.axis = .vertical
-        labelsStack.spacing = 2
-        labelsStack.alignment = .leading
-        contentView.addSubview(labelsStack)
-
-        nameLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        dateLabel.font = .systemFont(ofSize: 13)
-        dateLabel.textColor = .secondaryLabel
-        summaryLabel.font = .systemFont(ofSize: 13)
-        summaryLabel.textColor = .secondaryLabel
-        dimensionsLabel.font = .systemFont(ofSize: 12)
-        dimensionsLabel.textColor = .tertiaryLabel
-
-        labelsStack.addArrangedSubview(nameLabel)
-        labelsStack.addArrangedSubview(dateLabel)
-        labelsStack.addArrangedSubview(summaryLabel)
-        labelsStack.addArrangedSubview(dimensionsLabel)
-
-        NSLayoutConstraint.activate([
-            thumbnailImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            thumbnailImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            thumbnailImageView.widthAnchor.constraint(equalToConstant: 60),
-            thumbnailImageView.heightAnchor.constraint(equalToConstant: 60),
-            thumbnailImageView.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 8),
-            thumbnailImageView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8),
-
-            labelsStack.leadingAnchor.constraint(equalTo: thumbnailImageView.trailingAnchor, constant: 12),
-            labelsStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
-            labelsStack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            labelsStack.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 8),
-            labelsStack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8)
-        ])
-    }
-
-    func configure(with room: SavedRoom) {
-        // Show room type icon + name
-        let roomTypeIcon = room.roomType.icon
-        nameLabel.text = "\(roomTypeIcon) \(room.name)"
-
-        dateLabel.text = room.formattedDate
-        summaryLabel.text = room.summary
-        dimensionsLabel.text = room.dimensionsSummary
-
-        // Load floor plan thumbnail
-        if let image = RoomStorageManager.shared.getFloorPlanImage(for: room) {
-            thumbnailImageView.image = image
-        } else {
-            thumbnailImageView.image = UIImage(systemName: "square.3.layers.3d")
-            thumbnailImageView.tintColor = .systemGray
-        }
-
-        dimensionsLabel.isHidden = room.dimensionsSummary.isEmpty
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
     }
 }
 
@@ -591,14 +687,13 @@ class FloorPlanPreviewViewController: UIViewController {
 
     private func setupUI() {
         title = roomName
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = SpatialSenseTheme.Color.immersive
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,
             target: self,
             action: #selector(dismissView)
         )
-
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .action,
             target: self,
@@ -608,13 +703,16 @@ class FloorPlanPreviewViewController: UIViewController {
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.contentMode = .scaleAspectFit
         imageView.image = image
+        imageView.backgroundColor = SpatialSenseTheme.Color.surfaceElevated
+        imageView.layer.cornerRadius = SpatialSenseTheme.Radius.md
+        imageView.clipsToBounds = true
         view.addSubview(imageView)
 
         NSLayoutConstraint.activate([
-            imageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            imageView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16)
+            imageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: SpatialSenseTheme.Space.md),
+            imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            imageView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -SpatialSenseTheme.Space.md)
         ])
     }
 

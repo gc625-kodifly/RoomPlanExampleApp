@@ -12,18 +12,18 @@ import simd
 // MARK: - Floor Plan Configuration
 
 enum FloorPlanConfig {
-    static let wallColor = UIColor.darkGray
-    static let doorColor = UIColor.systemBrown
-    static let windowColor = UIColor.systemBlue
-    static let objectColor = UIColor.systemOrange
-    static let openingColor = UIColor.lightGray
-    static let backgroundColor = UIColor.systemBackground
-    static let dimensionColor = UIColor.secondaryLabel
+    static let wallColor = UIColor(red: 0.12, green: 0.14, blue: 0.18, alpha: 1)
+    static let doorColor = UIColor(red: 0.55, green: 0.35, blue: 0.18, alpha: 1)
+    static let windowColor = SpatialSenseTheme.Color.primary
+    static let objectColor = UIColor(red: 0.95, green: 0.55, blue: 0.18, alpha: 1)
+    static let openingColor = UIColor(white: 0.75, alpha: 1)
+    static let backgroundColor = SpatialSenseTheme.Color.canvas
+    static let dimensionColor = SpatialSenseTheme.Color.textSecondary
 
     static let wallThickness: CGFloat = 4.0
     static let doorThickness: CGFloat = 2.0
     static let windowThickness: CGFloat = 3.0
-    static let objectCornerRadius: CGFloat = 4.0
+    static let objectCornerRadius: CGFloat = SpatialSenseTheme.Radius.sm
 
     static let padding: CGFloat = 40.0
     static let dimensionFontSize: CGFloat = 10.0
@@ -92,15 +92,32 @@ struct FloorPlanData: Codable {
     let elements: [FloorPlanElement]
     let boundingBox: CGRect
     let roomDimensions: (width: Float, height: Float, depth: Float)
+    let boundary: [CGPoint]
+    let roomArea: Float
+    let roomName: String
+    let createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case elements, boundingBox, roomWidth, roomHeight, roomDepth
+        case boundary, roomArea, roomName, createdAt
     }
 
-    init(elements: [FloorPlanElement], boundingBox: CGRect, roomDimensions: (width: Float, height: Float, depth: Float)) {
+    init(
+        elements: [FloorPlanElement],
+        boundingBox: CGRect,
+        roomDimensions: (width: Float, height: Float, depth: Float),
+        boundary: [CGPoint] = [],
+        roomArea: Float = 0,
+        roomName: String = "Room",
+        createdAt: Date = Date()
+    ) {
         self.elements = elements
         self.boundingBox = boundingBox
         self.roomDimensions = roomDimensions
+        self.boundary = boundary
+        self.roomArea = roomArea
+        self.roomName = roomName
+        self.createdAt = createdAt
     }
 
     init(from decoder: Decoder) throws {
@@ -111,6 +128,10 @@ struct FloorPlanData: Codable {
         let height = try container.decode(Float.self, forKey: .roomHeight)
         let depth = try container.decode(Float.self, forKey: .roomDepth)
         roomDimensions = (width, height, depth)
+        boundary = try container.decodeIfPresent([CGPoint].self, forKey: .boundary) ?? []
+        roomArea = try container.decodeIfPresent(Float.self, forKey: .roomArea) ?? width * depth
+        roomName = try container.decodeIfPresent(String.self, forKey: .roomName) ?? "Room"
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -120,6 +141,10 @@ struct FloorPlanData: Codable {
         try container.encode(roomDimensions.width, forKey: .roomWidth)
         try container.encode(roomDimensions.height, forKey: .roomHeight)
         try container.encode(roomDimensions.depth, forKey: .roomDepth)
+        try container.encode(boundary, forKey: .boundary)
+        try container.encode(roomArea, forKey: .roomArea)
+        try container.encode(roomName, forKey: .roomName)
+        try container.encode(createdAt, forKey: .createdAt)
     }
 
     static func from(_ room: CapturedRoom) -> FloorPlanData {
@@ -182,24 +207,34 @@ struct FloorPlanData: Codable {
 
         let boundingBox = calculateBoundingBox(elements: elements)
         let dimensions = RoomGeometry.getBoundingBox(from: room)
+        let boundary = makeBoundary(from: room.walls)
+        let area = polygonArea(boundary)
+        let detectedType = RoomTypeDetector.detectRoomType(from: room).roomType
+        let roomName = detectedType == .unknown ? "Room" : detectedType.rawValue
 
         return FloorPlanData(
             elements: elements,
             boundingBox: boundingBox,
-            roomDimensions: dimensions
+            roomDimensions: dimensions,
+            boundary: boundary,
+            roomArea: area > 0 ? Float(area) : RoomGeometry.calculateApproximateFloorArea(from: room),
+            roomName: roomName
         )
     }
 
     private static func rectFrom(surface: any RoomPlanSurface) -> CGRect {
         let position = surface.transform.columns.3
         let dimensions = surface.dimensions
+        // RoomPlan surfaces are vertical planes. Their Z dimension is normally zero,
+        // so using it directly produces zero-height rectangles and invisible walls.
+        let planThickness = normalizedWallThickness(CGFloat(dimensions.z))
 
-        // Use X and Z for 2D floor plan (top-down view)
+        // Build the surface in its local X/Z plane, then rotate it around its center.
         return CGRect(
             x: CGFloat(position.x - dimensions.x / 2),
-            y: CGFloat(position.z - dimensions.z / 2),
+            y: CGFloat(position.z) - planThickness / 2,
             width: CGFloat(dimensions.x),
-            height: CGFloat(dimensions.z)
+            height: planThickness
         )
     }
 
@@ -230,13 +265,112 @@ struct FloorPlanData: Codable {
         var maxY: CGFloat = -.greatestFiniteMagnitude
 
         for element in elements {
-            minX = min(minX, element.rect.minX)
-            maxX = max(maxX, element.rect.maxX)
-            minY = min(minY, element.rect.minY)
-            maxY = max(maxY, element.rect.maxY)
+            let rotatedBounds = boundingRect(of: element.rect, rotatedBy: element.rotation)
+            minX = min(minX, rotatedBounds.minX)
+            maxX = max(maxX, rotatedBounds.maxX)
+            minY = min(minY, rotatedBounds.minY)
+            maxY = max(maxY, rotatedBounds.maxY)
         }
 
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    static func boundingRect(of rect: CGRect, rotatedBy angle: CGFloat) -> CGRect {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let cosine = cos(angle)
+        let sine = sin(angle)
+        let corners = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.maxY),
+            CGPoint(x: rect.minX, y: rect.maxY)
+        ].map { point -> CGPoint in
+            let x = point.x - center.x
+            let y = point.y - center.y
+            return CGPoint(
+                x: center.x + x * cosine - y * sine,
+                y: center.y + x * sine + y * cosine
+            )
+        }
+
+        let minX = corners.map(\.x).min() ?? rect.minX
+        let maxX = corners.map(\.x).max() ?? rect.maxX
+        let minY = corners.map(\.y).min() ?? rect.minY
+        let maxY = corners.map(\.y).max() ?? rect.maxY
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    static func normalizedWallThickness(_ measuredThickness: CGFloat) -> CGFloat {
+        max(measuredThickness, 0.10)
+    }
+
+    private static func makeBoundary(from walls: [CapturedRoom.Surface]) -> [CGPoint] {
+        var segments: [(CGPoint, CGPoint)] = walls.map { wall in
+            let halfWidth = wall.dimensions.x / 2
+            let left = wall.transform * SIMD4<Float>(-halfWidth, 0, 0, 1)
+            let right = wall.transform * SIMD4<Float>(halfWidth, 0, 0, 1)
+            return (
+                CGPoint(x: CGFloat(left.x), y: CGFloat(left.z)),
+                CGPoint(x: CGFloat(right.x), y: CGFloat(right.z))
+            )
+        }
+        guard !segments.isEmpty else { return [] }
+
+        let firstSegment = segments.removeFirst()
+        var boundary = [firstSegment.0, firstSegment.1]
+
+        while !segments.isEmpty {
+            guard let current = boundary.last else { break }
+            var bestIndex = 0
+            var bestDistance = CGFloat.greatestFiniteMagnitude
+            var shouldReverse = false
+            for (index, segment) in segments.enumerated() {
+                let startDistance = hypot(segment.0.x - current.x, segment.0.y - current.y)
+                let endDistance = hypot(segment.1.x - current.x, segment.1.y - current.y)
+                if startDistance < bestDistance {
+                    bestDistance = startDistance
+                    bestIndex = index
+                    shouldReverse = false
+                }
+                if endDistance < bestDistance {
+                    bestDistance = endDistance
+                    bestIndex = index
+                    shouldReverse = true
+                }
+            }
+            let segment = segments.remove(at: bestIndex)
+            boundary.append(shouldReverse ? segment.0 : segment.1)
+        }
+
+        return removeNearDuplicates(boundary)
+    }
+
+    private static func removeNearDuplicates(_ points: [CGPoint]) -> [CGPoint] {
+        var result: [CGPoint] = []
+        for point in points {
+            guard let last = result.last else {
+                result.append(point)
+                continue
+            }
+            if hypot(point.x - last.x, point.y - last.y) > 0.05 {
+                result.append(point)
+            }
+        }
+        if result.count > 2, let first = result.first, let last = result.last,
+           hypot(first.x - last.x, first.y - last.y) < 0.05 {
+            result.removeLast()
+        }
+        return result
+    }
+
+    private static func polygonArea(_ points: [CGPoint]) -> CGFloat {
+        guard points.count >= 3 else { return 0 }
+        var sum: CGFloat = 0
+        for index in points.indices {
+            let next = points[(index + 1) % points.count]
+            sum += points[index].x * next.y - next.x * points[index].y
+        }
+        return abs(sum) / 2
     }
 
     private static func labelFor(category: CapturedRoom.Object.Category) -> String {
@@ -478,36 +612,19 @@ class FloorPlanView: UIView, UIGestureRecognizerDelegate {
         context.scaleBy(x: zoomScale, y: zoomScale)
         context.translateBy(x: -bounds.midX, y: -bounds.midY)
 
-        // Draw WiFi heatmap first (behind floor plan)
-        if showWifiHeatmap && !wifiSamples.isEmpty {
-            drawWifiHeatmap(in: context)
-        }
-
-        // Draw elements by type (walls first, then others on top)
-        let walls = data.elements.filter { if case .wall = $0.type { return true } else { return false } }
-        let doors = data.elements.filter { if case .door = $0.type { return true } else { return false } }
-        let windows = data.elements.filter { if case .window = $0.type { return true } else { return false } }
-        let openings = data.elements.filter { if case .opening = $0.type { return true } else { return false } }
-        let objects = data.elements.filter { if case .object = $0.type { return true } else { return false } }
-
-        // Draw in order: walls, openings, doors, windows, objects
-        walls.forEach { drawElement($0, in: context) }
-        openings.forEach { drawElement($0, in: context) }
-        doors.forEach { drawElement($0, in: context) }
-        windows.forEach { drawElement($0, in: context) }
-        objects.forEach { drawElement($0, in: context) }
-
-        // Draw dimensions
-        if showDimensions {
-            drawDimensions(data: data, in: context)
-        }
+        FloorPlanDocumentRenderer.draw(
+            data: data,
+            wifiSamples: wifiSamples,
+            in: bounds,
+            context: context,
+            options: FloorPlanRenderOptions(
+                showDimensions: showDimensions,
+                showLabels: showLabels,
+                showWiFi: showWifiHeatmap
+            )
+        )
 
         context.restoreGState()
-
-        // Draw legend (not affected by zoom/pan)
-        if showWifiHeatmap && !wifiSamples.isEmpty {
-            drawWifiLegend(in: context)
-        }
 
         // Draw zoom/rotation indicator
         if zoomScale != 1.0 || rotationAngle != 0.0 {
@@ -664,7 +781,7 @@ class FloorPlanView: UIView, UIGestureRecognizerDelegate {
 
         // Background
         let bgRect = CGRect(x: legendX - 8, y: legendY - 8, width: 90, height: CGFloat(items.count) * spacing + 12)
-        context.setFillColor(UIColor.systemBackground.withAlphaComponent(0.9).cgColor)
+        context.setFillColor(SpatialSenseTheme.Color.canvas.withAlphaComponent(0.92).cgColor)
         context.fill(bgRect)
         context.setStrokeColor(UIColor.separator.cgColor)
         context.setLineWidth(0.5)

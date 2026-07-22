@@ -2,11 +2,12 @@
 //  HomeViewController.swift
 //  RoomPlanSimple
 //
-//  Modern home screen with quick actions and recent scans
+//  SpatialSense-inspired workspace home screen
 //
 
 import UIKit
 import RoomPlan
+import ARKit
 
 @MainActor
 class HomeViewController: UIViewController {
@@ -16,20 +17,24 @@ class HomeViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
 
-    private let headerLabel = UILabel()
+    private let brandHeader = UIView()
+    private let brandMark = UIImageView()
+    private let brandTitleLabel = UILabel()
+    private let brandSubtitleLabel = UILabel()
+
+    private let headingLabel = UILabel()
+    private let subtitleLabel = UILabel()
     private let newScanButton = UIButton(type: .system)
-    private let savedRoomsButton = UIButton(type: .system)
-    private let helpButton = UIButton(type: .system)
+    private let pointCloudScanButton = UIButton(type: .system)
+    private let secondaryActionsStack = UIStackView()
 
+    private let recentHeaderStack = UIStackView()
     private let recentScansLabel = UILabel()
+    private let viewAllButton = UIButton(type: .system)
     private let recentScansStack = UIStackView()
-    private let emptyStateLabel = UILabel()
-
-    private let featuresLabel = UILabel()
-    private let featuresStack = UIStackView()
+    private let emptyStateContainer = UIView()
 
     private var isStartingScan = false
-    private var activityIndicator: UIActivityIndicatorView?
 
     // MARK: - Lifecycle
 
@@ -41,10 +46,13 @@ class HomeViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
+        if let navBar = navigationController?.navigationBar {
+            SpatialSenseTheme.configureNavigationBar(navBar, immersive: false)
+        }
         updateRecentScans()
 
         #if DEBUG
-        // Print storage debug info to help diagnose iCloud issues
         RoomStorageManager.shared.debugStorageInfo()
         #endif
     }
@@ -52,33 +60,45 @@ class HomeViewController: UIViewController {
     // MARK: - Setup
 
     private func setupUI() {
-        view.backgroundColor = .systemBackground
-        title = L10n.Home.title.localized
+        view.backgroundColor = SpatialSenseTheme.Color.adaptiveCanvas
+        title = L10n.Home.brandName.localized
+        navigationItem.largeTitleDisplayMode = .never
 
         setupNavigationBar()
         setupScrollView()
-        setupHeader()
+        setupBrandHeader()
+        setupHeading()
         setupActionButtons()
         setupRecentScans()
-        setupFeatures()
     }
 
     private func setupNavigationBar() {
-        // Settings button
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "gear"),
+        let settingsItem = UIBarButtonItem(
+            image: UIImage(systemName: "gearshape.fill"),
             style: .plain,
             target: self,
             action: #selector(showSettings)
         )
+        settingsItem.accessibilityLabel = L10n.Settings.title.localized
+
+        let helpItem = UIBarButtonItem(
+            image: UIImage(systemName: "questionmark.circle"),
+            style: .plain,
+            target: self,
+            action: #selector(showHelp)
+        )
+        helpItem.accessibilityLabel = L10n.Help.title.localized
+
+        navigationItem.rightBarButtonItems = [settingsItem, helpItem]
     }
 
     private func setupScrollView() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
         view.addSubview(scrollView)
 
         contentStack.axis = .vertical
-        contentStack.spacing = 32
+        contentStack.spacing = SpatialSenseTheme.Space.lg
         contentStack.alignment = .fill
         contentStack.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(contentStack)
@@ -89,255 +109,247 @@ class HomeViewController: UIViewController {
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            contentStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 24),
-            contentStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 20),
-            contentStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -20),
-            contentStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -24),
-            contentStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -40)
+            contentStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: SpatialSenseTheme.Space.md),
+            contentStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            contentStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            contentStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -SpatialSenseTheme.Space.lg),
+            contentStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -SpatialSenseTheme.Space.xl)
         ])
     }
 
-    private func setupHeader() {
-        headerLabel.text = L10n.Home.header.localized
-        headerLabel.font = .systemFont(ofSize: 28, weight: .bold)
-        headerLabel.textAlignment = .center
-        contentStack.addArrangedSubview(headerLabel)
+    private func setupBrandHeader() {
+        brandHeader.translatesAutoresizingMaskIntoConstraints = false
+        brandHeader.backgroundColor = SpatialSenseTheme.Color.navDark
+        brandHeader.layer.cornerRadius = SpatialSenseTheme.Radius.lg
+        brandHeader.clipsToBounds = true
+
+        brandMark.translatesAutoresizingMaskIntoConstraints = false
+        brandMark.image = UIImage(systemName: "square.stack.3d.up.fill")
+        brandMark.tintColor = SpatialSenseTheme.Color.siderSelected
+        brandMark.contentMode = .scaleAspectFit
+
+        brandTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        brandTitleLabel.text = L10n.Home.brandName.localized
+        brandTitleLabel.font = SpatialSenseTheme.Font.semibold(18)
+        brandTitleLabel.textColor = SpatialSenseTheme.Color.textOnInverse
+        brandTitleLabel.adjustsFontForContentSizeCategory = true
+
+        brandSubtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        brandSubtitleLabel.text = L10n.Home.header.localized
+        brandSubtitleLabel.font = SpatialSenseTheme.Font.caption
+        brandSubtitleLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7)
+        brandSubtitleLabel.adjustsFontForContentSizeCategory = true
+
+        let textStack = UIStackView(arrangedSubviews: [brandTitleLabel, brandSubtitleLabel])
+        textStack.axis = .vertical
+        textStack.spacing = 2
+        textStack.translatesAutoresizingMaskIntoConstraints = false
+
+        brandHeader.addSubview(brandMark)
+        brandHeader.addSubview(textStack)
+        contentStack.addArrangedSubview(brandHeader)
+
+        NSLayoutConstraint.activate([
+            brandHeader.heightAnchor.constraint(greaterThanOrEqualToConstant: 72),
+
+            brandMark.leadingAnchor.constraint(equalTo: brandHeader.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            brandMark.centerYAnchor.constraint(equalTo: brandHeader.centerYAnchor),
+            brandMark.widthAnchor.constraint(equalToConstant: SpatialSenseTheme.Size.iconTile),
+            brandMark.heightAnchor.constraint(equalToConstant: SpatialSenseTheme.Size.iconTile),
+
+            textStack.leadingAnchor.constraint(equalTo: brandMark.trailingAnchor, constant: SpatialSenseTheme.Space.md),
+            textStack.trailingAnchor.constraint(equalTo: brandHeader.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            textStack.centerYAnchor.constraint(equalTo: brandHeader.centerYAnchor)
+        ])
+
+        // Accent gradient strip at top of brand header
+        let accent = UIView()
+        accent.translatesAutoresizingMaskIntoConstraints = false
+        accent.backgroundColor = SpatialSenseTheme.Color.primary
+        brandHeader.addSubview(accent)
+        NSLayoutConstraint.activate([
+            accent.topAnchor.constraint(equalTo: brandHeader.topAnchor),
+            accent.leadingAnchor.constraint(equalTo: brandHeader.leadingAnchor),
+            accent.trailingAnchor.constraint(equalTo: brandHeader.trailingAnchor),
+            accent.heightAnchor.constraint(equalToConstant: 3)
+        ])
+    }
+
+    private func setupHeading() {
+        headingLabel.text = L10n.Home.header.localized
+        headingLabel.font = SpatialSenseTheme.Font.heading
+        headingLabel.textColor = SpatialSenseTheme.Color.adaptiveText
+        headingLabel.numberOfLines = 0
+        headingLabel.adjustsFontForContentSizeCategory = true
+
+        subtitleLabel.text = L10n.Home.subtitle.localized
+        subtitleLabel.font = SpatialSenseTheme.Font.body
+        subtitleLabel.textColor = SpatialSenseTheme.Color.adaptiveSecondaryText
+        subtitleLabel.numberOfLines = 0
+        subtitleLabel.adjustsFontForContentSizeCategory = true
+
+        let headingStack = UIStackView(arrangedSubviews: [headingLabel, subtitleLabel])
+        headingStack.axis = .vertical
+        headingStack.spacing = SpatialSenseTheme.Space.sm
+        contentStack.addArrangedSubview(headingStack)
     }
 
     private func setupActionButtons() {
-        let buttonsStack = UIStackView()
-        buttonsStack.axis = .vertical
-        buttonsStack.spacing = 16
-        buttonsStack.distribution = .fillEqually
-
-        // New Scan Button
-        configureButton(
-            newScanButton,
+        newScanButton.configuration = SpatialSenseTheme.primaryButtonConfiguration(
             title: L10n.Home.NewScan.title.localized,
             subtitle: L10n.Home.NewScan.subtitle.localized,
-            icon: "cube.transparent.fill",
-            backgroundColor: .systemBlue
+            icon: "plus.viewfinder"
         )
+        newScanButton.translatesAutoresizingMaskIntoConstraints = false
+        newScanButton.heightAnchor.constraint(equalToConstant: 80).isActive = true
+        newScanButton.accessibilityIdentifier = "home.newScan"
         newScanButton.addTarget(self, action: #selector(startScan), for: .touchUpInside)
 
-        // Saved Rooms Button
-        configureButton(
-            savedRoomsButton,
-            title: L10n.Home.SavedRooms.title.localized,
-            subtitle: L10n.Home.SavedRooms.subtitle.localized,
-            icon: "square.stack.3d.up.fill",
-            backgroundColor: .systemGreen
+        pointCloudScanButton.configuration = SpatialSenseTheme.primaryButtonConfiguration(
+            title: "Point Cloud Scan",
+            subtitle: "Capture ARKit mesh vertices for PCD export",
+            icon: "point.3.connected.trianglepath.dotted"
         )
-        savedRoomsButton.addTarget(self, action: #selector(showSavedRooms), for: .touchUpInside)
+        pointCloudScanButton.translatesAutoresizingMaskIntoConstraints = false
+        pointCloudScanButton.heightAnchor.constraint(equalToConstant: 80).isActive = true
+        pointCloudScanButton.accessibilityIdentifier = "home.pointCloudScan"
+        pointCloudScanButton.addTarget(self, action: #selector(startPointCloudScan), for: .touchUpInside)
 
-        // Help Button
-        configureButton(
-            helpButton,
+        let savedButton = UIButton(type: .system)
+        savedButton.configuration = SpatialSenseTheme.secondaryButtonConfiguration(
+            title: L10n.Home.SavedRooms.title.localized,
+            icon: "square.stack.3d.up"
+        )
+        savedButton.accessibilityIdentifier = "home.savedRooms"
+        savedButton.addTarget(self, action: #selector(showSavedRooms), for: .touchUpInside)
+
+        let helpButton = UIButton(type: .system)
+        helpButton.configuration = SpatialSenseTheme.secondaryButtonConfiguration(
             title: L10n.Home.Help.title.localized,
-            subtitle: L10n.Home.Help.subtitle.localized,
-            icon: "questionmark.circle.fill",
-            backgroundColor: .systemOrange
+            icon: "questionmark.circle"
         )
         helpButton.addTarget(self, action: #selector(showHelp), for: .touchUpInside)
 
-        buttonsStack.addArrangedSubview(newScanButton)
-        buttonsStack.addArrangedSubview(savedRoomsButton)
-        buttonsStack.addArrangedSubview(helpButton)
+        secondaryActionsStack.axis = .horizontal
+        secondaryActionsStack.spacing = SpatialSenseTheme.Space.sm
+        secondaryActionsStack.distribution = .fillEqually
+        secondaryActionsStack.addArrangedSubview(savedButton)
+        secondaryActionsStack.addArrangedSubview(helpButton)
 
-        contentStack.addArrangedSubview(buttonsStack)
-    }
-
-    private func configureButton(_ button: UIButton, title: String, subtitle: String, icon: String, backgroundColor: UIColor) {
-        var config = UIButton.Configuration.filled()
-        config.baseBackgroundColor = backgroundColor
-        config.cornerStyle = .large
-        config.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
-
-        var titleAttr = AttributedString(title)
-        titleAttr.font = .systemFont(ofSize: 20, weight: .semibold)
-        config.attributedTitle = titleAttr
-
-        var subtitleAttr = AttributedString(subtitle)
-        subtitleAttr.font = .systemFont(ofSize: 14)
-        config.attributedSubtitle = subtitleAttr
-
-        config.image = UIImage(systemName: icon)
-        config.imagePlacement = .leading
-        config.imagePadding = 12
-        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 28)
-
-        button.configuration = config
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.heightAnchor.constraint(equalToConstant: 80).isActive = true
+        let actionsStack = UIStackView(arrangedSubviews: [newScanButton, pointCloudScanButton, secondaryActionsStack])
+        actionsStack.axis = .vertical
+        actionsStack.spacing = SpatialSenseTheme.Space.md
+        contentStack.addArrangedSubview(actionsStack)
     }
 
     private func setupRecentScans() {
         recentScansLabel.text = L10n.Home.recentScans.localized
-        recentScansLabel.font = .systemFont(ofSize: 22, weight: .semibold)
-        contentStack.addArrangedSubview(recentScansLabel)
+        recentScansLabel.font = SpatialSenseTheme.Font.subheading
+        recentScansLabel.textColor = SpatialSenseTheme.Color.adaptiveText
+        recentScansLabel.adjustsFontForContentSizeCategory = true
+
+        var viewAllConfig = UIButton.Configuration.plain()
+        viewAllConfig.title = L10n.Home.viewAll.localized
+        viewAllConfig.baseForegroundColor = SpatialSenseTheme.Color.adaptivePrimary
+        viewAllConfig.contentInsets = .zero
+        viewAllButton.configuration = viewAllConfig
+        viewAllButton.titleLabel?.font = SpatialSenseTheme.Font.semibold(14)
+        viewAllButton.addTarget(self, action: #selector(showSavedRooms), for: .touchUpInside)
+
+        recentHeaderStack.axis = .horizontal
+        recentHeaderStack.alignment = .center
+        recentHeaderStack.distribution = .equalSpacing
+        recentHeaderStack.addArrangedSubview(recentScansLabel)
+        recentHeaderStack.addArrangedSubview(viewAllButton)
+        contentStack.addArrangedSubview(recentHeaderStack)
 
         recentScansStack.axis = .vertical
-        recentScansStack.spacing = 12
+        recentScansStack.spacing = SpatialSenseTheme.Space.md
         contentStack.addArrangedSubview(recentScansStack)
 
-        emptyStateLabel.text = L10n.Home.emptyState.localized
-        emptyStateLabel.font = .systemFont(ofSize: 16)
-        emptyStateLabel.textColor = .secondaryLabel
-        emptyStateLabel.textAlignment = .center
-        emptyStateLabel.numberOfLines = 0
-        emptyStateLabel.isHidden = true
-        contentStack.addArrangedSubview(emptyStateLabel)
+        setupEmptyState()
+        contentStack.addArrangedSubview(emptyStateContainer)
     }
 
-    private func setupFeatures() {
-        featuresLabel.text = L10n.Home.features.localized
-        featuresLabel.font = .systemFont(ofSize: 22, weight: .semibold)
-        contentStack.addArrangedSubview(featuresLabel)
+    private func setupEmptyState() {
+        emptyStateContainer.translatesAutoresizingMaskIntoConstraints = false
+        SpatialSenseTheme.applyCardChrome(to: emptyStateContainer)
 
-        featuresStack.axis = .vertical
-        featuresStack.spacing = 12
+        let icon = UIImageView(image: UIImage(systemName: "cube.transparent"))
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.tintColor = SpatialSenseTheme.Color.adaptivePrimary
+        icon.contentMode = .scaleAspectFit
 
-        let features = [
-            ("cube.transparent", L10n.Feature.capture3DTitle.localized, L10n.Feature.capture3DDescription.localized),
-            ("wifi", L10n.Feature.wifiHeatmapTitle.localized, L10n.Feature.wifiHeatmapDescription.localized),
-            ("camera.fill", L10n.Feature.photoCaptureTitle.localized, L10n.Feature.photoCaptureDescription.localized),
-            ("square.and.arrow.up", L10n.Feature.exportTitle.localized, L10n.Feature.exportDescription.localized),
-            ("icloud.fill", L10n.Feature.icloudTitle.localized, L10n.Feature.icloudDescription.localized)
-        ]
+        let title = UILabel()
+        title.translatesAutoresizingMaskIntoConstraints = false
+        title.text = L10n.Home.emptyStateTitle.localized
+        title.font = SpatialSenseTheme.Font.subheading
+        title.textColor = SpatialSenseTheme.Color.adaptiveText
+        title.textAlignment = .center
+        title.adjustsFontForContentSizeCategory = true
 
-        for (icon, title, description) in features {
-            let featureView = createFeatureView(icon: icon, title: title, description: description)
-            featuresStack.addArrangedSubview(featureView)
-        }
+        let body = UILabel()
+        body.translatesAutoresizingMaskIntoConstraints = false
+        body.text = L10n.Home.emptyState.localized
+        body.font = SpatialSenseTheme.Font.body
+        body.textColor = SpatialSenseTheme.Color.adaptiveSecondaryText
+        body.textAlignment = .center
+        body.numberOfLines = 0
+        body.adjustsFontForContentSizeCategory = true
 
-        contentStack.addArrangedSubview(featuresStack)
-    }
-
-    private func createFeatureView(icon: String, title: String, description: String) -> UIView {
-        let container = UIView()
-        container.backgroundColor = .secondarySystemBackground
-        container.layer.cornerRadius = 12
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        let iconView = UIImageView(image: UIImage(systemName: icon))
-        iconView.tintColor = .systemBlue
-        iconView.contentMode = .scaleAspectFit
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-
-        let titleLabel = UILabel()
-        titleLabel.text = title
-        titleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let descLabel = UILabel()
-        descLabel.text = description
-        descLabel.font = .systemFont(ofSize: 14)
-        descLabel.textColor = .secondaryLabel
-        descLabel.numberOfLines = 0
-        descLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        container.addSubview(iconView)
-        container.addSubview(titleLabel)
-        container.addSubview(descLabel)
+        emptyStateContainer.addSubview(icon)
+        emptyStateContainer.addSubview(title)
+        emptyStateContainer.addSubview(body)
 
         NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 60),
+            emptyStateContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 160),
 
-            iconView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            iconView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 32),
-            iconView.heightAnchor.constraint(equalToConstant: 32),
+            icon.topAnchor.constraint(equalTo: emptyStateContainer.topAnchor, constant: SpatialSenseTheme.Space.lg),
+            icon.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 36),
+            icon.heightAnchor.constraint(equalToConstant: 36),
 
-            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
-            titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+            title.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: SpatialSenseTheme.Space.md),
+            title.leadingAnchor.constraint(equalTo: emptyStateContainer.leadingAnchor, constant: SpatialSenseTheme.Space.lg),
+            title.trailingAnchor.constraint(equalTo: emptyStateContainer.trailingAnchor, constant: -SpatialSenseTheme.Space.lg),
 
-            descLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-            descLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            descLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
-            descLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12)
+            body.topAnchor.constraint(equalTo: title.bottomAnchor, constant: SpatialSenseTheme.Space.sm),
+            body.leadingAnchor.constraint(equalTo: title.leadingAnchor),
+            body.trailingAnchor.constraint(equalTo: title.trailingAnchor),
+            body.bottomAnchor.constraint(equalTo: emptyStateContainer.bottomAnchor, constant: -SpatialSenseTheme.Space.lg)
         ])
-
-        return container
     }
 
     // MARK: - Recent Scans
 
     private func updateRecentScans() {
-        // Clear existing
         recentScansStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         let savedRooms = RoomStorageManager.shared.getSavedRooms()
         let recentRooms = Array(savedRooms.prefix(3))
 
         if recentRooms.isEmpty {
-            recentScansLabel.isHidden = true
+            recentHeaderStack.isHidden = true
             recentScansStack.isHidden = true
-            emptyStateLabel.isHidden = false
-            savedRoomsButton.isEnabled = false
+            emptyStateContainer.isHidden = false
         } else {
-            recentScansLabel.isHidden = false
+            recentHeaderStack.isHidden = false
             recentScansStack.isHidden = false
-            emptyStateLabel.isHidden = true
-            savedRoomsButton.isEnabled = true
+            emptyStateContainer.isHidden = true
+            viewAllButton.isHidden = savedRooms.count <= 3
 
             for room in recentRooms {
-                let roomCard = createRoomCard(for: room)
-                recentScansStack.addArrangedSubview(roomCard)
+                let card = ScanCardView()
+                card.configure(with: room, statusText: L10n.Home.ScanStatus.local.localized)
+                card.onTap = { [weak self] in
+                    self?.openRoom(room)
+                }
+                card.onOverflow = { [weak self] in
+                    self?.showRoomActions(for: room)
+                }
+                recentScansStack.addArrangedSubview(card)
             }
         }
-
-        // Update saved button title
-        if savedRooms.count > 0 {
-            var config = savedRoomsButton.configuration
-            let roomWord = savedRooms.count == 1 ? L10n.Home.SavedRooms.room.localized : L10n.Home.SavedRooms.rooms.localized
-            config?.attributedSubtitle = AttributedString(L10n.Home.SavedRooms.count.localized(savedRooms.count, roomWord))
-            savedRoomsButton.configuration = config
-        }
-    }
-
-    private func createRoomCard(for room: SavedRoom) -> UIView {
-        let container = UIView()
-        container.backgroundColor = .tertiarySystemBackground
-        container.layer.cornerRadius = 12
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(button)
-
-        var config = UIButton.Configuration.plain()
-        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
-
-        var titleAttr = AttributedString(room.name)
-        titleAttr.font = .systemFont(ofSize: 16, weight: .medium)
-        config.attributedTitle = titleAttr
-
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        var subtitleAttr = AttributedString(formatter.string(from: room.date))
-        subtitleAttr.font = .systemFont(ofSize: 14)
-        subtitleAttr.foregroundColor = .secondaryLabel
-        config.attributedSubtitle = subtitleAttr
-
-        config.image = UIImage(systemName: "cube.fill")
-        config.imagePlacement = .leading
-        config.imagePadding = 8
-
-        button.configuration = config
-        button.tag = room.name.hashValue
-        button.addTarget(self, action: #selector(openRecentRoom), for: .touchUpInside)
-
-        NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(equalToConstant: 60),
-            button.topAnchor.constraint(equalTo: container.topAnchor),
-            button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            button.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        ])
-
-        return container
     }
 
     // MARK: - Device Check
@@ -345,24 +357,38 @@ class HomeViewController: UIViewController {
     private func checkDeviceCapability() {
         if !RoomCaptureSession.isSupported {
             newScanButton.isEnabled = false
-            newScanButton.alpha = 0.5
+            newScanButton.alpha = 0.55
+            pointCloudScanButton.isEnabled = false
+            pointCloudScanButton.alpha = 0.55
             var config = newScanButton.configuration
             config?.attributedSubtitle = AttributedString(L10n.Home.NewScan.noLidar.localized)
             newScanButton.configuration = config
-
-            #if DEBUG
-            print("⚠️  LiDAR not available - Scanning disabled, but viewing saved rooms is still available")
-            #endif
-        } else {
-            #if DEBUG
-            print("✅ LiDAR available - Full scanning functionality enabled")
-            #endif
+        } else if !ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
+            pointCloudScanButton.isEnabled = false
+            pointCloudScanButton.alpha = 0.55
+            var config = pointCloudScanButton.configuration
+            config?.attributedSubtitle = AttributedString("Scene reconstruction is unavailable on this device")
+            pointCloudScanButton.configuration = config
         }
     }
 
     // MARK: - Actions
 
     @objc private func startScan() {
+        presentRoomScan()
+    }
+
+    @objc private func startPointCloudScan() {
+        guard ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) else {
+            showError(message: "This device does not support ARKit scene reconstruction.")
+            return
+        }
+        let controller = PointCloudCaptureViewController()
+        controller.modalPresentationStyle = .fullScreen
+        present(controller, animated: true)
+    }
+
+    private func presentRoomScan() {
         guard !isStartingScan else { return }
 
         guard RoomCaptureSession.isSupported else {
@@ -370,17 +396,16 @@ class HomeViewController: UIViewController {
             return
         }
 
-        // Load from Main.storyboard since HomeViewController is created programmatically
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
         guard let viewController = storyboard.instantiateViewController(
             withIdentifier: "RoomCaptureViewNavigationController") as? UINavigationController else {
             showError(message: "Unable to start scanning - RoomCaptureViewController not found in storyboard")
-            #if DEBUG
-            print("❌ Failed to load RoomCaptureViewNavigationController from Main.storyboard")
-            #endif
             return
         }
 
+        if let navBar = viewController.navigationBar as UINavigationBar? {
+            SpatialSenseTheme.configureNavigationBar(navBar, immersive: true)
+        }
         viewController.modalPresentationStyle = .fullScreen
         present(viewController, animated: true)
     }
@@ -388,23 +413,47 @@ class HomeViewController: UIViewController {
     @objc private func showSavedRooms() {
         let savedRoomsVC = SavedRoomsViewController()
         let navController = UINavigationController(rootViewController: savedRoomsVC)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: false)
+        navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)
     }
 
     @objc private func showSettings() {
         let settingsVC = SettingsViewController(style: .insetGrouped)
         let navController = UINavigationController(rootViewController: settingsVC)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: false)
         present(navController, animated: true)
     }
 
     @objc private func showHelp() {
         let helpVC = HelpViewController()
         let navController = UINavigationController(rootViewController: helpVC)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: false)
         present(navController, animated: true)
     }
 
-    @objc private func openRecentRoom(_ sender: UIButton) {
-        showSavedRooms()
+    private func openRoom(_ room: SavedRoom) {
+        let viewerVC = RoomViewerViewController(savedRoom: room)
+        let navController = UINavigationController(rootViewController: viewerVC)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: true)
+        navController.modalPresentationStyle = .fullScreen
+        present(navController, animated: true)
+    }
+
+    private func showRoomActions(for room: SavedRoom) {
+        let alert = UIAlertController(title: room.name, message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: L10n.FloorPlan.view.localized, style: .default) { [weak self] _ in
+            self?.openRoom(room)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Home.SavedRooms.title.localized, style: .default) { [weak self] _ in
+            self?.showSavedRooms()
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+        }
+        present(alert, animated: true)
     }
 
     // MARK: - Alerts

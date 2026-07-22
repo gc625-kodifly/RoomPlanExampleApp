@@ -9,6 +9,7 @@ import UIKit
 import RoomPlan
 import ModelIO
 import SceneKit
+import ARKit
 
 /// Handles room export operations and share sheet presentation
 @MainActor
@@ -33,11 +34,12 @@ final class RoomExportManager {
         statistics: ScanStatistics,
         onFloorPlan: @escaping () -> Void,
         onSave: @escaping () -> Void,
+        onPointCloud: (() -> Void)? = nil,
         onExport: @escaping (ExportFormat) -> Void
     ) {
         let alert = UIAlertController(
             title: AppConstants.Strings.exportTitle,
-            message: "Detected: \(statistics.summary)\n\n\(AppConstants.Strings.exportMessage)",
+            message: "\(L10n.Export.detectedSummary.localized(statistics.summary))\n\n\(AppConstants.Strings.exportMessage)",
             preferredStyle: .actionSheet
         )
 
@@ -50,6 +52,12 @@ final class RoomExportManager {
         alert.addAction(UIAlertAction(title: L10n.Export.viewFloorPlan.localized, style: .default) { _ in
             onFloorPlan()
         })
+
+        if let onPointCloud {
+            alert.addAction(UIAlertAction(title: "PCD Point Cloud", style: .default) { _ in
+                onPointCloud()
+            })
+        }
 
         for format in ExportFormat.allCases {
             alert.addAction(UIAlertAction(title: format.localizedName, style: .default) { _ in
@@ -98,6 +106,29 @@ final class RoomExportManager {
             } else {
                 try results.export(to: destinationURL, exportOptions: format.exportOption)
             }
+            presentShareSheet(for: destinationURL, onError: onError)
+        } catch {
+            onError(RoomCaptureError.exportFailed(underlying: error))
+        }
+    }
+
+    /// Exports reconstructed ARKit mesh vertices as a voxel-filtered PCD file.
+    func performPointCloudExport(
+        anchors: [ARMeshAnchor],
+        voxelSize: Float = 0.02,
+        onError: @escaping (RoomCaptureError) -> Void
+    ) {
+        let fileName = "\(AppConstants.Export.filePrefix)_\(formatDate(Date())).pcd"
+        let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+
+        try? FileManager.default.removeItem(at: destinationURL)
+
+        do {
+            _ = try PointCloudExporter.export(
+                anchors: anchors,
+                to: destinationURL,
+                voxelSize: voxelSize
+            )
             presentShareSheet(for: destinationURL, onError: onError)
         } catch {
             onError(RoomCaptureError.exportFailed(underlying: error))

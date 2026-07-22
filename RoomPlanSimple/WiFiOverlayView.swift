@@ -147,7 +147,7 @@ final class WiFiOverlayView: UIView {
             let alpha = max(0.1, 1.0 - CGFloat(age) / 30.0) // Fade over 30 seconds
 
             // Draw small blue dot
-            context.setFillColor(UIColor.systemBlue.withAlphaComponent(alpha * 0.4).cgColor)
+            context.setFillColor(SpatialSenseTheme.Color.primary.withAlphaComponent(alpha * 0.4).cgColor)
             let rect = CGRect(
                 x: screenPos.x - coverageMarkerSize / 2,
                 y: screenPos.y - coverageMarkerSize / 2,

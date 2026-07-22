@@ -16,21 +16,24 @@ enum AppConstants {
     enum UI {
         static let animationDuration: TimeInterval = 0.3
         static let statusLabelAutoHideDelay: TimeInterval = 2.0
-        static let cornerRadius: CGFloat = 8.0
+        static let cornerRadius: CGFloat = SpatialSenseTheme.Radius.md
         static let statusLabelFontSize: CGFloat = 14.0
-        static let statusLabelMinHeight: CGFloat = 32.0
+        static let statusLabelMinHeight: CGFloat = SpatialSenseTheme.Size.statusPillHeight
         static let statusLabelTopOffset: CGFloat = 50.0
-        static let overlayAlpha: CGFloat = 0.6
-        static let errorOverlayAlpha: CGFloat = 0.8
+        static let overlayAlpha: CGFloat = 0.55
+        static let errorOverlayAlpha: CGFloat = 0.85
     }
 
-    // MARK: - Colors
+    // MARK: - Colors (SpatialSense-aligned)
 
     enum Colors {
-        static let overlayBackground = UIColor.black.withAlphaComponent(UI.overlayAlpha)
-        static let errorBackground = UIColor.systemRed.withAlphaComponent(UI.errorOverlayAlpha)
-        static let activeNavBarTint = UIColor.white
-        static let completeNavBarTint = UIColor.systemBlue
+        static let overlayBackground = SpatialSenseTheme.Color.overlay
+        static let errorBackground = SpatialSenseTheme.Color.errorOverlay
+        static let activeNavBarTint = SpatialSenseTheme.Color.textOnInverse
+        static let completeNavBarTint = SpatialSenseTheme.Color.primary
+        static let primary = SpatialSenseTheme.Color.primary
+        static let canvas = SpatialSenseTheme.Color.canvas
+        static let navDark = SpatialSenseTheme.Color.navDark
     }
 
     // MARK: - Export Configuration

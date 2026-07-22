@@ -185,15 +185,11 @@ final class RoomStorageManager {
     }
 
     private func saveFloorPlanImage(for room: CapturedRoom, to url: URL) {
-        // Create a floor plan view and render to image
-        let floorPlanView = FloorPlanView(frame: CGRect(x: 0, y: 0, width: 800, height: 800))
-        floorPlanView.configure(with: room)
-        floorPlanView.layoutIfNeeded()
-
-        let renderer = UIGraphicsImageRenderer(bounds: floorPlanView.bounds)
-        let image = renderer.image { context in
-            floorPlanView.layer.render(in: context.cgContext)
-        }
+        let data = FloorPlanData.from(room)
+        let image = FloorPlanDocumentRenderer.image(
+            data: data,
+            size: CGSize(width: 1600, height: 2000)
+        )
 
         if let pngData = image.pngData() {
             try? pngData.write(to: url)

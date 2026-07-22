@@ -17,21 +17,27 @@
 "common.loading" = "Loading...";
 
 // MARK: - Home Screen
-"home.title" = "RoomPlan";
-"home.header" = "3D Room Scanner";
-"home.newScan.title" = "Start New Scan";
-"home.newScan.subtitle" = "Scan a room with LiDAR";
+"home.title" = "SpatialSense Capture";
+"home.brandName" = "SpatialSense";
+"home.header" = "Capture spaces for your project";
+"home.subtitle" = "Scan rooms with LiDAR, review floor plans, and export models ready for SpatialSense.";
+"home.newScan.title" = "New Scan";
+"home.newScan.subtitle" = "Start a LiDAR room capture";
 "home.newScan.noLidar" = "Requires LiDAR scanner • View saved rooms instead";
-"home.savedRooms.title" = "Saved Rooms";
-"home.savedRooms.subtitle" = "View and manage your scans";
+"home.savedRooms.title" = "Saved Scans";
+"home.savedRooms.subtitle" = "Browse and manage captures";
 "home.savedRooms.count" = "%d saved %@";
-"home.savedRooms.room" = "room";
-"home.savedRooms.rooms" = "rooms";
-"home.help.title" = "Help & Features";
-"home.help.subtitle" = "Learn what you can do";
+"home.savedRooms.room" = "scan";
+"home.savedRooms.rooms" = "scans";
+"home.help.title" = "Help";
+"home.help.subtitle" = "Tips and feature guide";
 "home.recentScans" = "Recent Scans";
-"home.emptyState" = "No saved scans yet.\nStart your first scan above!";
+"home.viewAll" = "View all";
+"home.emptyStateTitle" = "No scans yet";
+"home.emptyState" = "Create your first room capture to build a SpatialSense-ready project library.";
 "home.features" = "Features";
+"home.scanStatus.ready" = "Ready";
+"home.scanStatus.local" = "Saved locally";
 
 // MARK: - Features List
 "feature.3dCapture.title" = "3D Room Capture";
@@ -78,22 +84,30 @@
 "scan.error.requiresLidar" = "RoomPlan requires iPhone 12 Pro or later, or iPad Pro with LiDAR.";
 
 // MARK: - Saved Rooms
-"savedRooms.title" = "Saved Rooms";
-"savedRooms.empty" = "No saved rooms yet";
-"savedRooms.deleteConfirm.title" = "Delete Room?";
+"savedRooms.title" = "Saved Scans";
+"savedRooms.empty" = "Start a new scan from the home screen to populate this workspace.";
+"savedRooms.emptyTitle" = "No saved scans";
+"savedRooms.searchPlaceholder" = "Search scans";
+"savedRooms.sortNewest" = "Newest";
+"savedRooms.sortOldest" = "Oldest";
+"savedRooms.sortName" = "Name";
+"savedRooms.gridView" = "Grid view";
+"savedRooms.listView" = "List view";
+"savedRooms.noResults" = "No scans match your search.";
+"savedRooms.deleteConfirm.title" = "Delete Scan?";
 "savedRooms.deleteConfirm.message" = "Are you sure you want to delete \"%@\"?";
 "savedRooms.deleteConfirm.delete" = "Delete";
-"savedRooms.deleteAll.title" = "Delete All Rooms?";
-"savedRooms.deleteAll.message" = "This will permanently delete all %d saved room(s).";
+"savedRooms.deleteAll.title" = "Delete All Scans?";
+"savedRooms.deleteAll.message" = "This will permanently delete all %d saved scan(s).";
 "savedRooms.deleteAll.button" = "Delete All";
-"savedRooms.deleteSuccess" = "Room deleted";
-"savedRooms.deleteError" = "Failed to delete room";
-"savedRooms.selectRooms" = "Select Rooms";
+"savedRooms.deleteSuccess" = "Scan deleted";
+"savedRooms.deleteError" = "Failed to delete scan";
+"savedRooms.selectRooms" = "Select Scans";
 "savedRooms.selectedCount" = "%d selected";
 "savedRooms.deleteSelected" = "Delete";
 "savedRooms.exportSelected" = "Export";
-"savedRooms.deleteSelected.title" = "Delete Selected Rooms?";
-"savedRooms.deleteSelected.message" = "This will permanently delete %d selected room(s).";
+"savedRooms.deleteSelected.title" = "Delete Selected Scans?";
+"savedRooms.deleteSelected.message" = "This will permanently delete %d selected scan(s).";
 "savedRooms.walls" = "%d walls";
 "savedRooms.doors" = "%d doors";
 "savedRooms.windows" = "%d windows";
@@ -129,7 +143,7 @@
 "viewer.info.objects" = "Objects";
 
 // MARK: - Export
-"export.title" = "Export Room";
+"export.title" = "Export Scan";
 "export.format" = "Format";
 "export.usdz" = "USDZ (3D Model)";
 "export.usdz.parametric" = "USDZ Parametric";
@@ -150,9 +164,10 @@
 "export.chooseExport" = "Choose what to export";
 "export.floorPlanImage" = "Export Floor Plan Image";
 "export.both" = "Export Both";
-"export.saveRoom" = "Save Room";
+"export.saveRoom" = "Save Scan";
 "export.viewFloorPlan" = "View Floor Plan";
-"export.chooseFormat" = "Choose export format";
+"export.chooseFormat" = "Choose an export format for SpatialSense or local use";
+"export.detectedSummary" = "Detected: %@";
 "export.toICloud" = "Export to iCloud Drive";
 "export.allToICloud" = "Export All to iCloud Drive";
 "export.toICloudMessage" = "This will copy all your saved rooms to iCloud Drive where they'll be visible in Finder on Mac.\n\nLocation: iCloud Drive → RoomPlanExport";

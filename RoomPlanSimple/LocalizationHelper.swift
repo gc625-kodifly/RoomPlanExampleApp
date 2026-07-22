@@ -42,8 +42,12 @@ enum L10n {
     enum Home {
         static let title = "home.title"
         static let header = "home.header"
+        static let subtitle = "home.subtitle"
+        static let brandName = "home.brandName"
         static let recentScans = "home.recentScans"
+        static let viewAll = "home.viewAll"
         static let emptyState = "home.emptyState"
+        static let emptyStateTitle = "home.emptyStateTitle"
         static let features = "home.features"
 
         enum NewScan {
@@ -63,6 +67,11 @@ enum L10n {
         enum Help {
             static let title = "home.help.title"
             static let subtitle = "home.help.subtitle"
+        }
+
+        enum ScanStatus {
+            static let ready = "home.scanStatus.ready"
+            static let local = "home.scanStatus.local"
         }
     }
 
@@ -121,6 +130,7 @@ enum L10n {
     enum SavedRooms {
         static let title = "savedRooms.title"
         static let empty = "savedRooms.empty"
+        static let emptyTitle = "savedRooms.emptyTitle"
         static let walls = "savedRooms.walls"
         static let doors = "savedRooms.doors"
         static let windows = "savedRooms.windows"
@@ -136,6 +146,13 @@ enum L10n {
         static let roomNamePlaceholder = "savedRooms.roomNamePlaceholder"
         static let saved = "savedRooms.saved"
         static let savedCount = "savedRooms.savedCount"
+        static let searchPlaceholder = "savedRooms.searchPlaceholder"
+        static let sortNewest = "savedRooms.sortNewest"
+        static let sortOldest = "savedRooms.sortOldest"
+        static let sortName = "savedRooms.sortName"
+        static let gridView = "savedRooms.gridView"
+        static let listView = "savedRooms.listView"
+        static let noResults = "savedRooms.noResults"
 
         enum DeleteConfirm {
             static let title = "savedRooms.deleteConfirm.title"
@@ -212,6 +229,7 @@ enum L10n {
         static let saveRoom = "export.saveRoom"
         static let viewFloorPlan = "export.viewFloorPlan"
         static let chooseFormat = "export.chooseFormat"
+        static let detectedSummary = "export.detectedSummary"
         static let toICloud = "export.toICloud"
         static let allToICloud = "export.allToICloud"
         static let toICloudMessage = "export.toICloudMessage"

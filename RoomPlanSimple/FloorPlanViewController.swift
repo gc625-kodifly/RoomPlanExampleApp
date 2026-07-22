@@ -65,7 +65,12 @@ class FloorPlanViewController: UIViewController {
 
     private func setupUI() {
         title = L10n.FloorPlan.title.localized
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = SpatialSenseTheme.Color.immersive
+        overrideUserInterfaceStyle = .dark
+
+        if let navBar = navigationController?.navigationBar {
+            SpatialSenseTheme.configureNavigationBar(navBar, immersive: true)
+        }
 
         // Navigation bar
         navigationItem.leftBarButtonItem = UIBarButtonItem(
@@ -82,12 +87,14 @@ class FloorPlanViewController: UIViewController {
 
         // Floor plan view
         floorPlanView.translatesAutoresizingMaskIntoConstraints = false
+        floorPlanView.layer.cornerRadius = SpatialSenseTheme.Radius.lg
+        floorPlanView.clipsToBounds = true
         view.addSubview(floorPlanView)
 
         // Stats label
         statsLabel.translatesAutoresizingMaskIntoConstraints = false
-        statsLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        statsLabel.textColor = .secondaryLabel
+        statsLabel.font = SpatialSenseTheme.Font.caption
+        statsLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.75)
         statsLabel.textAlignment = .center
         statsLabel.numberOfLines = 0
         view.addSubview(statsLabel)
@@ -96,43 +103,46 @@ class FloorPlanViewController: UIViewController {
         let buttonStack = UIStackView()
         buttonStack.translatesAutoresizingMaskIntoConstraints = false
         buttonStack.axis = .horizontal
-        buttonStack.spacing = 16
+        buttonStack.spacing = SpatialSenseTheme.Space.sm
         buttonStack.distribution = .fillEqually
         view.addSubview(buttonStack)
 
-        // Toggle dimensions button
-        toggleDimensionsButton.setTitle("Dimensions: On", for: .normal)
+        styleToggleButton(toggleDimensionsButton, title: "Dimensions: On")
         toggleDimensionsButton.addTarget(self, action: #selector(toggleDimensions), for: .touchUpInside)
         buttonStack.addArrangedSubview(toggleDimensionsButton)
 
-        // Toggle labels button
-        toggleLabelsButton.setTitle("Labels: On", for: .normal)
+        styleToggleButton(toggleLabelsButton, title: "Labels: On")
         toggleLabelsButton.addTarget(self, action: #selector(toggleLabels), for: .touchUpInside)
         buttonStack.addArrangedSubview(toggleLabelsButton)
 
-        // Toggle WiFi heatmap button (only show if we have samples)
         if !wifiSamples.isEmpty {
-            toggleWifiButton.setTitle("WiFi: On", for: .normal)
+            styleToggleButton(toggleWifiButton, title: "WiFi: On")
             toggleWifiButton.addTarget(self, action: #selector(toggleWifi), for: .touchUpInside)
             buttonStack.addArrangedSubview(toggleWifiButton)
         }
 
-        // Constraints
         NSLayoutConstraint.activate([
-            floorPlanView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            floorPlanView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            floorPlanView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            floorPlanView.bottomAnchor.constraint(equalTo: statsLabel.topAnchor, constant: -16),
+            floorPlanView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: SpatialSenseTheme.Space.sm),
+            floorPlanView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            floorPlanView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            floorPlanView.bottomAnchor.constraint(equalTo: statsLabel.topAnchor, constant: -SpatialSenseTheme.Space.md),
 
-            statsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            statsLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            statsLabel.bottomAnchor.constraint(equalTo: buttonStack.topAnchor, constant: -16),
+            statsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            statsLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            statsLabel.bottomAnchor.constraint(equalTo: buttonStack.topAnchor, constant: -SpatialSenseTheme.Space.md),
 
-            buttonStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
-            buttonStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
-            buttonStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            buttonStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            buttonStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
+            buttonStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -SpatialSenseTheme.Space.md),
             buttonStack.heightAnchor.constraint(equalToConstant: 44)
         ])
+    }
+
+    private func styleToggleButton(_ button: UIButton, title: String) {
+        button.configuration = SpatialSenseTheme.secondaryButtonConfiguration(title: title)
+        button.configuration?.baseForegroundColor = SpatialSenseTheme.Color.textOnInverse
+        button.configuration?.background.backgroundColor = SpatialSenseTheme.Color.overlayStrong
+        button.configuration?.background.strokeColor = UIColor.white.withAlphaComponent(0.12)
     }
 
     private func configureFloorPlan() {
@@ -157,17 +167,17 @@ class FloorPlanViewController: UIViewController {
 
     @objc private func toggleDimensions() {
         floorPlanView.showDimensions.toggle()
-        toggleDimensionsButton.setTitle("Dimensions: \(floorPlanView.showDimensions ? "On" : "Off")", for: .normal)
+        styleToggleButton(toggleDimensionsButton, title: "Dimensions: \(floorPlanView.showDimensions ? "On" : "Off")")
     }
 
     @objc private func toggleLabels() {
         floorPlanView.showLabels.toggle()
-        toggleLabelsButton.setTitle("Labels: \(floorPlanView.showLabels ? "On" : "Off")", for: .normal)
+        styleToggleButton(toggleLabelsButton, title: "Labels: \(floorPlanView.showLabels ? "On" : "Off")")
     }
 
     @objc private func toggleWifi() {
         floorPlanView.showWifiHeatmap.toggle()
-        toggleWifiButton.setTitle("WiFi: \(floorPlanView.showWifiHeatmap ? "On" : "Off")", for: .normal)
+        styleToggleButton(toggleWifiButton, title: "WiFi: \(floorPlanView.showWifiHeatmap ? "On" : "Off")")
     }
 
     @objc private func shareFloorPlan() {
@@ -202,10 +212,17 @@ class FloorPlanViewController: UIViewController {
     }
 
     private func exportAsPNG() {
-        let renderer = UIGraphicsImageRenderer(bounds: floorPlanView.bounds)
-        let image = renderer.image { context in
-            floorPlanView.layer.render(in: context.cgContext)
-        }
+        guard let room = capturedRoom else { return }
+        let image = FloorPlanDocumentRenderer.image(
+            data: FloorPlanData.from(room),
+            size: CGSize(width: 1600, height: 2000),
+            wifiSamples: wifiSamples,
+            options: FloorPlanRenderOptions(
+                showDimensions: floorPlanView.showDimensions,
+                showLabels: floorPlanView.showLabels,
+                showWiFi: floorPlanView.showWifiHeatmap
+            )
+        )
 
         let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
         activityVC.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItem

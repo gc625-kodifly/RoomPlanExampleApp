@@ -61,7 +61,8 @@ class RoomViewerViewController: UIViewController {
 
     private func setupUI() {
         title = savedRoom.name
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = SpatialSenseTheme.Color.immersive
+        overrideUserInterfaceStyle = .dark
 
         // Navigation buttons
         navigationItem.leftBarButtonItem = UIBarButtonItem(
@@ -76,22 +77,50 @@ class RoomViewerViewController: UIViewController {
             action: #selector(shareRoom)
         )
 
-        // Segmented control
+        if let navBar = navigationController?.navigationBar {
+            SpatialSenseTheme.configureNavigationBar(navBar, immersive: true)
+        }
+
+        // Floating segmented control panel
+        let segmentContainer = UIView()
+        segmentContainer.translatesAutoresizingMaskIntoConstraints = false
+        segmentContainer.backgroundColor = SpatialSenseTheme.Color.overlayStrong
+        segmentContainer.layer.cornerRadius = SpatialSenseTheme.Radius.control
+        segmentContainer.layer.borderWidth = 1
+        segmentContainer.layer.borderColor = UIColor.white.withAlphaComponent(0.08).cgColor
+        view.addSubview(segmentContainer)
+
         segmentedControl.selectedSegmentIndex = 0
         segmentedControl.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
         segmentedControl.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(segmentedControl)
+        segmentedControl.selectedSegmentTintColor = SpatialSenseTheme.Color.primary
+        segmentedControl.setTitleTextAttributes([
+            .foregroundColor: SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7),
+            .font: SpatialSenseTheme.Font.medium(12)
+        ], for: .normal)
+        segmentedControl.setTitleTextAttributes([
+            .foregroundColor: SpatialSenseTheme.Color.textOnInverse,
+            .font: SpatialSenseTheme.Font.semibold(12)
+        ], for: .selected)
+        segmentContainer.addSubview(segmentedControl)
 
         // Container view
         containerView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.backgroundColor = SpatialSenseTheme.Color.immersive
         view.addSubview(containerView)
+        view.sendSubviewToBack(containerView)
 
         NSLayoutConstraint.activate([
-            segmentedControl.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            segmentedControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            segmentedControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            segmentContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: SpatialSenseTheme.Space.sm),
+            segmentContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.md),
+            segmentContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
 
-            containerView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 8),
+            segmentedControl.topAnchor.constraint(equalTo: segmentContainer.topAnchor, constant: SpatialSenseTheme.Space.sm),
+            segmentedControl.leadingAnchor.constraint(equalTo: segmentContainer.leadingAnchor, constant: SpatialSenseTheme.Space.sm),
+            segmentedControl.trailingAnchor.constraint(equalTo: segmentContainer.trailingAnchor, constant: -SpatialSenseTheme.Space.sm),
+            segmentedControl.bottomAnchor.constraint(equalTo: segmentContainer.bottomAnchor, constant: -SpatialSenseTheme.Space.sm),
+
+            containerView.topAnchor.constraint(equalTo: view.topAnchor),
             containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             containerView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -160,10 +189,10 @@ class RoomViewerViewController: UIViewController {
         // Add pinch gesture hint
         let hintLabel = UILabel()
         hintLabel.text = L10n.Viewer.floorPlanHint.localized
-        hintLabel.font = .systemFont(ofSize: 12)
-        hintLabel.textColor = .secondaryLabel
+        hintLabel.font = SpatialSenseTheme.Font.caption
+        hintLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7)
         hintLabel.textAlignment = .center
-        hintLabel.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.8)
+        hintLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(hintLabel)
 
@@ -178,7 +207,7 @@ class RoomViewerViewController: UIViewController {
 
         let sceneView = SCNView(frame: containerView.bounds)
         sceneView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        sceneView.backgroundColor = .systemBackground
+        sceneView.backgroundColor = SpatialSenseTheme.Color.immersive
         sceneView.allowsCameraControl = true
         sceneView.autoenablesDefaultLighting = true
         sceneView.antialiasingMode = .multisampling4X
@@ -208,10 +237,10 @@ class RoomViewerViewController: UIViewController {
         // Add instructions overlay
         let instructionsLabel = UILabel()
         instructionsLabel.text = L10n.Viewer.model3DHint.localized
-        instructionsLabel.font = .systemFont(ofSize: 12)
-        instructionsLabel.textColor = .secondaryLabel
+        instructionsLabel.font = SpatialSenseTheme.Font.caption
+        instructionsLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.75)
         instructionsLabel.textAlignment = .center
-        instructionsLabel.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.8)
+        instructionsLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
         instructionsLabel.translatesAutoresizingMaskIntoConstraints = false
         sceneView.addSubview(instructionsLabel)
 
@@ -238,7 +267,7 @@ class RoomViewerViewController: UIViewController {
         layout.sectionInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
 
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collectionView.backgroundColor = .systemBackground
+        collectionView.backgroundColor = SpatialSenseTheme.Color.immersive
         collectionView.delegate = self
         collectionView.dataSource = self
         collectionView.register(PhotoCell.self, forCellWithReuseIdentifier: "PhotoCell")
@@ -248,7 +277,7 @@ class RoomViewerViewController: UIViewController {
         objc_setAssociatedObject(collectionView, photosAssociatedKey, photos, .OBJC_ASSOCIATION_RETAIN)
 
         let vc = UIViewController()
-        vc.view.backgroundColor = .systemBackground
+        vc.view.backgroundColor = SpatialSenseTheme.Color.immersive
         vc.view.addSubview(collectionView)
 
         NSLayoutConstraint.activate([
@@ -282,7 +311,7 @@ class RoomViewerViewController: UIViewController {
         floorPlanView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         floorPlanView.configure(with: floorPlanData, wifiSamples: wifiSamples)
         floorPlanView.showWifiHeatmap = true
-        floorPlanView.backgroundColor = .systemBackground
+        floorPlanView.backgroundColor = FloorPlanConfig.backgroundColor
 
         // Wrap in scroll view for zooming
         let scrollView = UIScrollView(frame: containerView.bounds)
@@ -300,10 +329,10 @@ class RoomViewerViewController: UIViewController {
         // Add hint label
         let hintLabel = UILabel()
         hintLabel.text = L10n.Viewer.wifiSamplesCount.localized(wifiSamples.count)
-        hintLabel.font = .systemFont(ofSize: 12)
-        hintLabel.textColor = .secondaryLabel
+        hintLabel.font = SpatialSenseTheme.Font.caption
+        hintLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7)
         hintLabel.textAlignment = .center
-        hintLabel.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.8)
+        hintLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(hintLabel)
 
@@ -324,7 +353,7 @@ class RoomViewerViewController: UIViewController {
         label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         let vc = UIViewController()
-        vc.view.backgroundColor = .systemBackground
+        vc.view.backgroundColor = SpatialSenseTheme.Color.immersive
         vc.view.addSubview(label)
 
         addChild(vc)
@@ -571,16 +600,16 @@ private class PhotoViewerViewController: UIViewController {
 
         // Close button
         closeButton.setTitle("✕", for: .normal)
-        closeButton.setTitleColor(.white, for: .normal)
-        closeButton.titleLabel?.font = .systemFont(ofSize: 24, weight: .medium)
+        closeButton.setTitleColor(SpatialSenseTheme.Color.textOnInverse, for: .normal)
+        closeButton.titleLabel?.font = SpatialSenseTheme.Font.semibold(24)
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(closeButton)
 
         // Page label
-        pageLabel.textColor = .white
+        pageLabel.textColor = SpatialSenseTheme.Color.textOnInverse
         pageLabel.textAlignment = .center
-        pageLabel.font = .systemFont(ofSize: 14)
+        pageLabel.font = SpatialSenseTheme.Font.caption
         pageLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(pageLabel)
 

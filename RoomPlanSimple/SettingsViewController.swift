@@ -55,6 +55,14 @@ class SettingsViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = L10n.Settings.title.localized
+        view.backgroundColor = SpatialSenseTheme.Color.adaptiveCanvas
+        tableView.backgroundColor = SpatialSenseTheme.Color.adaptiveCanvas
+        tableView.tintColor = SpatialSenseTheme.Color.adaptivePrimary
+
+        if let navBar = navigationController?.navigationBar {
+            SpatialSenseTheme.configureNavigationBar(navBar, immersive: false)
+        }
+
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,
             target: self,
@@ -175,7 +183,7 @@ class SettingsViewController: UITableViewController {
         case .exportToiCloudDrive:
             let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
             cell.textLabel?.text = L10n.Export.allToICloud.localized
-            cell.textLabel?.textColor = .systemBlue
+            cell.textLabel?.textColor = SpatialSenseTheme.Color.adaptivePrimary
             cell.accessoryType = .disclosureIndicator
             return cell
         }
@@ -439,14 +447,18 @@ private class SwitchCell: UITableViewCell {
     private func setupUI() {
         selectionStyle = .none
 
-        titleLabel.font = .systemFont(ofSize: 17)
+        titleLabel.font = SpatialSenseTheme.Font.body
+        titleLabel.textColor = SpatialSenseTheme.Color.adaptiveText
+        titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        subtitleLabel.font = .systemFont(ofSize: 13)
-        subtitleLabel.textColor = .secondaryLabel
+        subtitleLabel.font = SpatialSenseTheme.Font.caption
+        subtitleLabel.textColor = SpatialSenseTheme.Color.adaptiveSecondaryText
         subtitleLabel.numberOfLines = 0
+        subtitleLabel.adjustsFontForContentSizeCategory = true
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        toggleSwitch.onTintColor = SpatialSenseTheme.Color.primary
         toggleSwitch.addTarget(self, action: #selector(switchToggled), for: .valueChanged)
         toggleSwitch.translatesAutoresizingMaskIntoConstraints = false
 

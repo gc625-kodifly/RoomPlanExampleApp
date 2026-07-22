@@ -22,10 +22,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let window = UIWindow(windowScene: windowScene)
 
         // Create HomeViewController with a UINavigationController
-        let homeVC = HomeViewController()
+        let homeVC = CaptureLibraryViewController()
         let navController = UINavigationController(rootViewController: homeVC)
-        navController.navigationBar.prefersLargeTitles = true
+        navController.navigationBar.prefersLargeTitles = false
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: false)
 
+        window.tintColor = SpatialSenseTheme.Color.primary
         window.rootViewController = navController
         window.makeKeyAndVisible()
         self.window = window

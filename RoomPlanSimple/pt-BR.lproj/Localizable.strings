@@ -325,3 +325,20 @@
 
 // MARK: - Floor Plan Export
 "floorPlan.export" = "Exportar Planta Baixa";
+
+/* SpatialSense UI additions */
+"home.brandName" = "SpatialSense";
+"home.subtitle" = "Scan rooms with LiDAR, review floor plans, and export models ready for SpatialSense.";
+"home.viewAll" = "View all";
+"home.emptyStateTitle" = "No scans yet";
+"home.scanStatus.ready" = "Ready";
+"home.scanStatus.local" = "Saved locally";
+"savedRooms.emptyTitle" = "No saved scans";
+"savedRooms.searchPlaceholder" = "Search scans";
+"savedRooms.sortNewest" = "Newest";
+"savedRooms.sortOldest" = "Oldest";
+"savedRooms.sortName" = "Name";
+"savedRooms.gridView" = "Grid view";
+"savedRooms.listView" = "List view";
+"savedRooms.noResults" = "No scans match your search.";
+"export.detectedSummary" = "Detected: %@";

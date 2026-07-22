@@ -38,6 +38,13 @@ class HelpViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = L10n.Help.title.localized
+        view.backgroundColor = SpatialSenseTheme.Color.adaptiveCanvas
+        tableView.backgroundColor = SpatialSenseTheme.Color.adaptiveCanvas
+        tableView.tintColor = SpatialSenseTheme.Color.adaptivePrimary
+
+        if let navBar = navigationController?.navigationBar {
+            SpatialSenseTheme.configureNavigationBar(navBar, immersive: false)
+        }
 
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,
@@ -211,18 +218,22 @@ private class HelpCell: UITableViewCell {
 
     private func setupUI() {
         selectionStyle = .none
+        backgroundColor = SpatialSenseTheme.Color.adaptiveSurface
 
-        iconView.tintColor = .systemBlue
+        iconView.tintColor = SpatialSenseTheme.Color.adaptivePrimary
         iconView.contentMode = .scaleAspectFit
         iconView.translatesAutoresizingMaskIntoConstraints = false
 
-        titleLabel.font = .systemFont(ofSize: 17, weight: .semibold)
+        titleLabel.font = SpatialSenseTheme.Font.subheading
+        titleLabel.textColor = SpatialSenseTheme.Color.adaptiveText
         titleLabel.numberOfLines = 0
+        titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        descriptionLabel.font = .systemFont(ofSize: 15)
-        descriptionLabel.textColor = .secondaryLabel
+        descriptionLabel.font = SpatialSenseTheme.Font.body
+        descriptionLabel.textColor = SpatialSenseTheme.Color.adaptiveSecondaryText
         descriptionLabel.numberOfLines = 0
+        descriptionLabel.adjustsFontForContentSizeCategory = true
         descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
 
         contentView.addSubview(iconView)
@@ -230,19 +241,19 @@ private class HelpCell: UITableViewCell {
         contentView.addSubview(descriptionLabel)
 
         NSLayoutConstraint.activate([
-            iconView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
-            iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            iconView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: SpatialSenseTheme.Space.md),
+            iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: SpatialSenseTheme.Space.md),
             iconView.widthAnchor.constraint(equalToConstant: 32),
             iconView.heightAnchor.constraint(equalToConstant: 32),
 
-            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
-            titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: SpatialSenseTheme.Space.md),
+            titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: SpatialSenseTheme.Space.md),
+            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
 
-            descriptionLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            descriptionLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: SpatialSenseTheme.Space.sm),
             descriptionLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             descriptionLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
-            descriptionLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12)
+            descriptionLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -SpatialSenseTheme.Space.md)
         ])
     }
 

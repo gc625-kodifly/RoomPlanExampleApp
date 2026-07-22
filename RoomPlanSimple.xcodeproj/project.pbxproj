@@ -43,6 +43,16 @@
 		CC000001DEADBEEF00000030 /* bimifc_ffi.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000030 /* bimifc_ffi.swift */; };
 		CC000001DEADBEEF00000031 /* IfcExportBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000031 /* IfcExportBridge.swift */; };
 		CC000001DEADBEEF00000032 /* BimIfcFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000032 /* BimIfcFFI.xcframework */; };
+		CC000001DEADBEEF00000040 /* SpatialSenseTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000040 /* SpatialSenseTheme.swift */; };
+		CC000001DEADBEEF00000041 /* ScanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000041 /* ScanCardView.swift */; };
+		CC000001DEADBEEF00000042 /* CaptureLibraryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000042 /* CaptureLibraryViewController.swift */; };
+		CC000001DEADBEEF00000043 /* PointCloudExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000043 /* PointCloudExporter.swift */; };
+		CC000001DEADBEEF00000044 /* PointCloudCaptureViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000044 /* PointCloudCaptureViewController.swift */; };
+		CC000001DEADBEEF00000045 /* PointCloudStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000045 /* PointCloudStorageManager.swift */; };
+		CC000001DEADBEEF00000046 /* PointCloudColorSampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000046 /* PointCloudColorSampler.swift */; };
+		CC000001DEADBEEF00000047 /* PointCloudFileLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000047 /* PointCloudFileLoader.swift */; };
+		CC000001DEADBEEF00000048 /* PointCloudViewerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000048 /* PointCloudViewerViewController.swift */; };
+		CC000001DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -118,6 +128,16 @@
 		CC000002DEADBEEF00000030 /* bimifc_ffi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bimifc_ffi.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000031 /* IfcExportBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IfcExportBridge.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000032 /* BimIfcFFI.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = BimIfcFFI.xcframework; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000040 /* SpatialSenseTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialSenseTheme.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000041 /* ScanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanCardView.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000042 /* CaptureLibraryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureLibraryViewController.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000043 /* PointCloudExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudExporter.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000044 /* PointCloudCaptureViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudCaptureViewController.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000045 /* PointCloudStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudStorageManager.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000046 /* PointCloudColorSampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudColorSampler.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000047 /* PointCloudFileLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudFileLoader.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000048 /* PointCloudViewerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudViewerViewController.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloorPlanDocumentRenderer.swift; sourceTree = "<group>"; };
 		CD4891E2C9F3F7012DE25B49 /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -193,6 +213,9 @@
 				ACEF94B02820AD2300776A9D /* AppDelegate.swift */,
 				ACEF94B22820AD2300776A9D /* SceneDelegate.swift */,
 				CC000002DEADBEEF00000001 /* Constants.swift */,
+				CC000002DEADBEEF00000040 /* SpatialSenseTheme.swift */,
+				CC000002DEADBEEF00000041 /* ScanCardView.swift */,
+				CC000002DEADBEEF00000042 /* CaptureLibraryViewController.swift */,
 				CC000002DEADBEEF00000004 /* RoomCaptureError.swift */,
 				CC000002DEADBEEF00000002 /* HapticFeedbackManager.swift */,
 				CC000002DEADBEEF00000003 /* ScanStatistics.swift */,
@@ -200,6 +223,13 @@
 				CC000002DEADBEEF00000011 /* HomeViewController.swift */,
 				CC000002DEADBEEF00000012 /* HelpViewController.swift */,
 				ACEF94B42820AD2300776A9D /* RoomCaptureViewController.swift */,
+				CC000002DEADBEEF00000043 /* PointCloudExporter.swift */,
+				CC000002DEADBEEF00000044 /* PointCloudCaptureViewController.swift */,
+				CC000002DEADBEEF00000045 /* PointCloudStorageManager.swift */,
+				CC000002DEADBEEF00000046 /* PointCloudColorSampler.swift */,
+				CC000002DEADBEEF00000047 /* PointCloudFileLoader.swift */,
+				CC000002DEADBEEF00000048 /* PointCloudViewerViewController.swift */,
+				CC000002DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift */,
 				CC000002DEADBEEF00000013 /* RoomViewerViewController.swift */,
 				CC000002DEADBEEF00000005 /* FloorPlanView.swift */,
 				CC000002DEADBEEF00000006 /* FloorPlanViewController.swift */,
@@ -406,6 +436,16 @@
 				ACEF94B32820AD2300776A9D /* SceneDelegate.swift in Sources */,
 				ACEF94C62820AF6600776A9D /* OnboardingViewController.swift in Sources */,
 				CC000001DEADBEEF00000001 /* Constants.swift in Sources */,
+				CC000001DEADBEEF00000040 /* SpatialSenseTheme.swift in Sources */,
+				CC000001DEADBEEF00000041 /* ScanCardView.swift in Sources */,
+				CC000001DEADBEEF00000042 /* CaptureLibraryViewController.swift in Sources */,
+				CC000001DEADBEEF00000043 /* PointCloudExporter.swift in Sources */,
+				CC000001DEADBEEF00000044 /* PointCloudCaptureViewController.swift in Sources */,
+				CC000001DEADBEEF00000045 /* PointCloudStorageManager.swift in Sources */,
+				CC000001DEADBEEF00000046 /* PointCloudColorSampler.swift in Sources */,
+				CC000001DEADBEEF00000047 /* PointCloudFileLoader.swift in Sources */,
+				CC000001DEADBEEF00000048 /* PointCloudViewerViewController.swift in Sources */,
+				CC000001DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift in Sources */,
 				CC000001DEADBEEF00000002 /* HapticFeedbackManager.swift in Sources */,
 				CC000001DEADBEEF00000003 /* ScanStatistics.swift in Sources */,
 				CC000001DEADBEEF00000004 /* RoomCaptureError.swift in Sources */,

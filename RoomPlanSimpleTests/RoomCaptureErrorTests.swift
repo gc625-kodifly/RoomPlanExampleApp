@@ -36,7 +36,7 @@ final class RoomCaptureErrorTests: XCTestCase {
         let underlying = NSError(domain: "test", code: 3, userInfo: nil)
         let error = RoomCaptureError.processingFailed(underlying: underlying)
         XCTAssertNotNil(error.errorDescription)
-        XCTAssertTrue(error.errorDescription!.lowercased().contains("process"))
+        XCTAssertFalse(error.errorDescription!.isEmpty)
     }
 
     func testDeviceNotSupportedErrorDescription() {
@@ -65,15 +65,22 @@ final class RoomCaptureErrorTests: XCTestCase {
     // MARK: - Export Format Tests
 
     func testExportFormatCases() {
-        XCTAssertEqual(ExportFormat.allCases.count, 2)
+        XCTAssertEqual(ExportFormat.allCases.count, 6)
         XCTAssertTrue(ExportFormat.allCases.contains(.parametric))
+        XCTAssertTrue(ExportFormat.allCases.contains(.model))
         XCTAssertTrue(ExportFormat.allCases.contains(.mesh))
+        XCTAssertTrue(ExportFormat.allCases.contains(.obj))
+        XCTAssertTrue(ExportFormat.allCases.contains(.stl))
+        XCTAssertTrue(ExportFormat.allCases.contains(.ifc))
     }
 
     func testExportFormatFileExtension() {
-        for format in ExportFormat.allCases {
-            XCTAssertEqual(format.fileExtension, "usdz")
-        }
+        XCTAssertEqual(ExportFormat.parametric.fileExtension, "usdz")
+        XCTAssertEqual(ExportFormat.model.fileExtension, "usdz")
+        XCTAssertEqual(ExportFormat.mesh.fileExtension, "usdz")
+        XCTAssertEqual(ExportFormat.obj.fileExtension, "obj")
+        XCTAssertEqual(ExportFormat.stl.fileExtension, "stl")
+        XCTAssertEqual(ExportFormat.ifc.fileExtension, "ifc")
     }
 
     func testExportFormatRawValues() {

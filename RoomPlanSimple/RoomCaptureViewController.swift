@@ -25,6 +25,8 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     // MARK: - Private Properties
 
     private var isScanning: Bool = false
+    private var isProcessingScan: Bool = false
+    private var didSaveCurrentScan: Bool = false
     private var roomCaptureView: RoomCaptureView!
     private var roomCaptureSessionConfig: RoomCaptureSession.Configuration = RoomCaptureSession.Configuration()
     private var finalResults: CapturedRoom?
@@ -36,6 +38,11 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     // Status UI
     private var statusLabel: UILabel?
+    private let captureControls = UIVisualEffectView(
+        effect: UIBlurEffect(style: .systemUltraThinMaterialDark)
+    )
+    private let bottomCancelButton = UIButton(type: .system)
+    private let bottomDoneButton = UIButton(type: .system)
 
     // Photo capture
     private let photoCaptureManager = PhotoCaptureManager()
@@ -56,12 +63,19 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     // MARK: - Lifecycle
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         setupRoomCaptureView()
         setupStatusLabel()
         setupPhotoButton()
         setupWifiToggle()
+        setupCaptureControls()
+        styleExportButton()
         HapticFeedbackManager.shared.prepareGenerators()
 
         // Listen for WiFi permission granted notification
@@ -107,44 +121,99 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     }
 
     private func setupStatusLabel() {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .systemFont(ofSize: AppConstants.UI.statusLabelFontSize, weight: .medium)
-        label.textColor = .white
-        label.textAlignment = .center
-        label.backgroundColor = AppConstants.Colors.overlayBackground
-        label.layer.cornerRadius = AppConstants.UI.cornerRadius
-        label.clipsToBounds = true
-        label.isHidden = true
-
+        let label = SpatialSenseTheme.statusPillLabel()
         view.addSubview(label)
         NSLayoutConstraint.activate([
             label.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: AppConstants.UI.statusLabelTopOffset),
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            label.heightAnchor.constraint(greaterThanOrEqualToConstant: AppConstants.UI.statusLabelMinHeight)
+            label.heightAnchor.constraint(greaterThanOrEqualToConstant: AppConstants.UI.statusLabelMinHeight),
+            label.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -48)
         ])
 
         statusLabel = label
     }
 
-    private func setupPhotoButton() {
-        // Camera button for capturing reference photos
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: "camera.fill"), for: .normal)
-        button.tintColor = .white
-        button.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        button.layer.cornerRadius = 30
-        button.addTarget(self, action: #selector(capturePhoto), for: .touchUpInside)
+    private func setupCaptureControls() {
+        captureControls.translatesAutoresizingMaskIntoConstraints = false
+        captureControls.layer.cornerRadius = 28
+        captureControls.layer.cornerCurve = .continuous
+        captureControls.clipsToBounds = true
+        view.addSubview(captureControls)
 
+        bottomCancelButton.translatesAutoresizingMaskIntoConstraints = false
+        bottomCancelButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+        bottomCancelButton.tintColor = .white
+        bottomCancelButton.backgroundColor = UIColor.white.withAlphaComponent(0.12)
+        bottomCancelButton.layer.cornerRadius = 29
+        bottomCancelButton.layer.borderWidth = 1
+        bottomCancelButton.layer.borderColor = UIColor.white.withAlphaComponent(0.45).cgColor
+        bottomCancelButton.accessibilityLabel = L10n.Common.cancel.localized
+        bottomCancelButton.addTarget(self, action: #selector(cancelScanning(_:)), for: .touchUpInside)
+
+        bottomDoneButton.translatesAutoresizingMaskIntoConstraints = false
+        var doneConfiguration = UIButton.Configuration.filled()
+        doneConfiguration.title = L10n.Common.done.localized
+        doneConfiguration.image = UIImage(systemName: "checkmark")
+        doneConfiguration.imagePadding = 8
+        doneConfiguration.baseBackgroundColor = SpatialSenseTheme.Color.primary
+        doneConfiguration.baseForegroundColor = .white
+        doneConfiguration.cornerStyle = .capsule
+        bottomDoneButton.configuration = doneConfiguration
+        bottomDoneButton.addTarget(self, action: #selector(doneScanning(_:)), for: .touchUpInside)
+
+        guard let exportButton else { return }
+        exportButton.removeFromSuperview()
+        exportButton.translatesAutoresizingMaskIntoConstraints = false
+
+        let spacer = UIView()
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+        let controls = UIStackView(arrangedSubviews: [
+            bottomCancelButton,
+            spacer,
+            exportButton,
+            bottomDoneButton
+        ])
+        controls.translatesAutoresizingMaskIntoConstraints = false
+        controls.axis = .horizontal
+        controls.alignment = .center
+        controls.spacing = 12
+        captureControls.contentView.addSubview(controls)
+
+        NSLayoutConstraint.activate([
+            captureControls.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            captureControls.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            captureControls.bottomAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+                constant: -14
+            ),
+            captureControls.heightAnchor.constraint(equalToConstant: 94),
+
+            controls.leadingAnchor.constraint(equalTo: captureControls.contentView.leadingAnchor, constant: 18),
+            controls.trailingAnchor.constraint(equalTo: captureControls.contentView.trailingAnchor, constant: -18),
+            controls.centerYAnchor.constraint(equalTo: captureControls.contentView.centerYAnchor),
+
+            bottomCancelButton.widthAnchor.constraint(equalToConstant: 58),
+            bottomCancelButton.heightAnchor.constraint(equalToConstant: 58),
+            exportButton.heightAnchor.constraint(equalToConstant: 48),
+            bottomDoneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            bottomDoneButton.heightAnchor.constraint(equalToConstant: 48)
+        ])
+    }
+
+    private func setupPhotoButton() {
+        let button = SpatialSenseTheme.circularControlButton(
+            systemName: "camera.fill",
+            diameter: SpatialSenseTheme.Size.photoButton
+        )
+        button.addTarget(self, action: #selector(capturePhoto), for: .touchUpInside)
+        button.accessibilityLabel = L10n.Feature.photoCaptureTitle.localized
         view.addSubview(button)
 
-        // Photo count badge
         let countLabel = UILabel()
         countLabel.translatesAutoresizingMaskIntoConstraints = false
-        countLabel.font = .systemFont(ofSize: 12, weight: .bold)
-        countLabel.textColor = .white
-        countLabel.backgroundColor = .systemBlue
+        countLabel.font = SpatialSenseTheme.Font.micro
+        countLabel.textColor = SpatialSenseTheme.Color.textOnInverse
+        countLabel.backgroundColor = SpatialSenseTheme.Color.primary
         countLabel.textAlignment = .center
         countLabel.layer.cornerRadius = 10
         countLabel.clipsToBounds = true
@@ -155,8 +224,6 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         NSLayoutConstraint.activate([
             button.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             button.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            button.widthAnchor.constraint(equalToConstant: 60),
-            button.heightAnchor.constraint(equalToConstant: 60),
 
             countLabel.topAnchor.constraint(equalTo: button.topAnchor, constant: -5),
             countLabel.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: 5),
@@ -169,25 +236,21 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     }
 
     private func setupWifiToggle() {
-        // WiFi toggle button (left side)
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: "wifi"), for: .normal)
-        button.tintColor = .white
-        button.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        button.layer.cornerRadius = 25
+        let button = SpatialSenseTheme.circularControlButton(
+            systemName: "wifi",
+            diameter: SpatialSenseTheme.Size.controlButton
+        )
         button.addTarget(self, action: #selector(toggleWifi), for: .touchUpInside)
-
+        button.accessibilityLabel = L10n.Scan.wifiTracking.localized
         view.addSubview(button)
 
-        // WiFi status label (shows signal/sample count)
         let statusLabel = UILabel()
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.font = .systemFont(ofSize: 11, weight: .medium)
-        statusLabel.textColor = .white
-        statusLabel.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        statusLabel.font = SpatialSenseTheme.Font.micro
+        statusLabel.textColor = SpatialSenseTheme.Color.textOnInverse
+        statusLabel.backgroundColor = SpatialSenseTheme.Color.overlay
         statusLabel.textAlignment = .center
-        statusLabel.layer.cornerRadius = 8
+        statusLabel.layer.cornerRadius = SpatialSenseTheme.Radius.sm
         statusLabel.clipsToBounds = true
         statusLabel.isHidden = true
 
@@ -196,8 +259,6 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         NSLayoutConstraint.activate([
             button.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             button.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            button.widthAnchor.constraint(equalToConstant: 50),
-            button.heightAnchor.constraint(equalToConstant: 50),
 
             statusLabel.topAnchor.constraint(equalTo: button.bottomAnchor, constant: 8),
             statusLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
@@ -209,7 +270,6 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         wifiStatusLabel = statusLabel
         updateWifiButtonState()
 
-        // Setup WiFi overlay view
         setupWifiOverlay()
     }
 
@@ -284,12 +344,15 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
         UIView.animate(withDuration: 0.2) { [weak self] in
             self?.wifiToggleButton?.backgroundColor = isOn
-                ? UIColor.systemBlue.withAlphaComponent(0.8)
-                : UIColor.black.withAlphaComponent(0.5)
+                ? SpatialSenseTheme.Color.primary.withAlphaComponent(0.9)
+                : SpatialSenseTheme.Color.overlay
             self?.wifiToggleButton?.setImage(
                 UIImage(systemName: isOn ? "wifi" : "wifi.slash"),
                 for: .normal
             )
+            self?.wifiToggleButton?.layer.borderColor = (isOn
+                ? SpatialSenseTheme.Color.primary
+                : UIColor.white.withAlphaComponent(0.12)).cgColor
         }
 
         wifiStatusLabel?.isHidden = !isOn
@@ -355,7 +418,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         statusLabel?.text = "  \(text)  "
         statusLabel?.backgroundColor = isError
             ? AppConstants.Colors.errorBackground
-            : AppConstants.Colors.overlayBackground
+            : SpatialSenseTheme.Color.statusPill
         statusLabel?.isHidden = false
     }
 
@@ -372,6 +435,8 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     private func startSession() {
         isScanning = true
+        isProcessingScan = false
+        didSaveCurrentScan = false
         captureError = nil
         roomCaptureView?.captureSession.run(configuration: roomCaptureSessionConfig)
         photoCaptureManager.startSession()
@@ -419,6 +484,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
                 self.captureError = error
                 self.showError(RoomCaptureError.processingFailed(underlying: error))
                 HapticFeedbackManager.shared.scanError()
+                self.finishProcessingWithoutSave()
             } else {
                 HapticFeedbackManager.shared.scanComplete()
             }
@@ -428,6 +494,8 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             // Auto-save if enabled in settings
             if AppSettings.shared.autoSaveScans && error == nil {
                 self.performAutoSave(processedResult)
+            } else if error == nil {
+                self.finishProcessingWithoutSave()
             }
         }
     }
@@ -435,20 +503,46 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     private func performAutoSave(_ room: CapturedRoom) {
         do {
             let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager, wifiManager: wifiSignalManager)
+            didSaveCurrentScan = true
             showAutoSaveConfirmation(savedRoom)
+            finishProcessingAfterSave()
         } catch {
-            // Don't show error for auto-save - just log it
             print("Auto-save failed: \(error)")
+            showError(RoomCaptureError.exportFailed(underlying: error))
+            finishProcessingWithoutSave()
         }
+    }
+
+    private func finishProcessingAfterSave() {
+        isProcessingScan = false
+        doneButton?.title = L10n.Common.done.localized
+        setBottomDoneTitle(L10n.Common.done.localized)
+        doneButton?.isEnabled = true
+        bottomDoneButton.isEnabled = true
+        cancelButton?.isEnabled = true
+        bottomCancelButton.isEnabled = true
+        exportButton?.isHidden = false
+    }
+
+    private func finishProcessingWithoutSave() {
+        isProcessingScan = false
+        let title = didSaveCurrentScan ? L10n.Common.done.localized : "Save & Close"
+        doneButton?.title = title
+        setBottomDoneTitle(title)
+        doneButton?.isEnabled = true
+        bottomDoneButton.isEnabled = true
+        cancelButton?.isEnabled = true
+        bottomCancelButton.isEnabled = true
+        exportButton?.isHidden = false
     }
 
     private func showAutoSaveConfirmation(_ savedRoom: SavedRoom) {
         let toast = UILabel()
         toast.text = "  Saved: \(savedRoom.name)  "
-        toast.font = .systemFont(ofSize: 14, weight: .medium)
-        toast.textColor = .white
-        toast.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
-        toast.layer.cornerRadius = 16
+        toast.font = SpatialSenseTheme.Font.medium(14)
+        toast.textColor = SpatialSenseTheme.Color.successText
+        toast.backgroundColor = SpatialSenseTheme.Color.successMuted
+        toast.layer.cornerRadius = SpatialSenseTheme.Radius.md
         toast.clipsToBounds = true
         toast.textAlignment = .center
         toast.translatesAutoresizingMaskIntoConstraints = false
@@ -535,15 +629,33 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     // MARK: - Actions
 
-    @IBAction func doneScanning(_ sender: UIBarButtonItem) {
+    @IBAction func doneScanning(_ sender: Any) {
         if isScanning {
+            isProcessingScan = true
+            doneButton?.title = L10n.Scan.processing.localized
+            setBottomDoneTitle(L10n.Scan.processing.localized)
+            doneButton?.isEnabled = false
+            bottomDoneButton.isEnabled = false
+            cancelButton?.isEnabled = false
+            bottomCancelButton.isEnabled = false
+            exportButton?.isHidden = true
             stopSession()
+        } else if isProcessingScan {
+            return
+        } else if !didSaveCurrentScan, let results = finalResults {
+            doneButton?.title = L10n.Scan.saving.localized
+            setBottomDoneTitle(L10n.Scan.saving.localized)
+            doneButton?.isEnabled = false
+            bottomDoneButton.isEnabled = false
+            cancelButton?.isEnabled = false
+            bottomCancelButton.isEnabled = false
+            performAutoSave(results)
         } else {
             cancelScanning(sender)
         }
     }
 
-    @IBAction func cancelScanning(_ sender: UIBarButtonItem) {
+    @IBAction func cancelScanning(_ sender: Any) {
         navigationController?.dismiss(animated: true)
     }
 
@@ -593,11 +705,11 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     private func showPhotoCapturedFeedback() {
         let feedbackLabel = UILabel()
         feedbackLabel.text = L10n.Scan.photoCaptured.localized
-        feedbackLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        feedbackLabel.textColor = .white
-        feedbackLabel.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        feedbackLabel.font = SpatialSenseTheme.Font.medium(14)
+        feedbackLabel.textColor = SpatialSenseTheme.Color.textOnInverse
+        feedbackLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
         feedbackLabel.textAlignment = .center
-        feedbackLabel.layer.cornerRadius = 8
+        feedbackLabel.layer.cornerRadius = SpatialSenseTheme.Radius.md
         feedbackLabel.clipsToBounds = true
         feedbackLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -696,12 +808,32 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     private func updateNavBar(isScanning: Bool) {
         let tintColor = isScanning ? AppConstants.Colors.activeNavBarTint : AppConstants.Colors.completeNavBarTint
-        exportButton?.isHidden = isScanning
+        exportButton?.isHidden = isScanning || isProcessingScan
 
         UIView.animate(withDuration: AppConstants.UI.animationDuration) { [weak self] in
             self?.cancelButton?.tintColor = tintColor
             self?.doneButton?.tintColor = tintColor
+            self?.bottomCancelButton.tintColor = .white
             self?.exportButton?.alpha = isScanning ? 0.0 : 1.0
         }
+    }
+
+    private func setBottomDoneTitle(_ title: String) {
+        var configuration = bottomDoneButton.configuration
+        configuration?.title = title
+        bottomDoneButton.configuration = configuration
+    }
+
+    private func styleExportButton() {
+        guard let exportButton else { return }
+        var config = UIButton.Configuration.filled()
+        config.baseBackgroundColor = SpatialSenseTheme.Color.primary
+        config.baseForegroundColor = SpatialSenseTheme.Color.textOnInverse
+        config.cornerStyle = .capsule
+        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 24, bottom: 12, trailing: 24)
+        var title = AttributedString(exportButton.title(for: .normal) ?? L10n.Common.share.localized)
+        title.font = SpatialSenseTheme.Font.semibold(16)
+        config.attributedTitle = title
+        exportButton.configuration = config
     }
 }
