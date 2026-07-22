@@ -44,13 +44,11 @@ final class PointCloudColorSampler {
             return
         }
         isProcessing = true
-        let existing = observations
         lock.unlock()
 
         processingQueue.async { [self] in
-            var updates = existing
-            updates.reserveCapacity(
-                max(existing.count, anchors.reduce(0) { $0 + $1.geometry.vertices.count })
+            observations.reserveCapacity(
+                max(observations.count, anchors.reduce(0) { $0 + $1.geometry.vertices.count })
             )
             let pixelBuffer = frame.capturedImage
             let depthBuffer = frame.smoothedSceneDepth?.depthMap ?? frame.sceneDepth?.depthMap
@@ -64,7 +62,6 @@ final class PointCloudColorSampler {
                 }
                 CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
                 self.lock.lock()
-                self.observations = updates
                 self.isProcessing = false
                 self.lock.unlock()
             }
@@ -93,10 +90,6 @@ final class PointCloudColorSampler {
                     let local = SIMD4<Float>(localPosition, 1)
                     let world = anchor.transform * local
                     let worldPosition = SIMD3<Float>(world.x, world.y, world.z)
-                    var bestObservation = Self.nearestObservation(
-                        to: worldPosition,
-                        in: existing
-                    )
                     let cameraPoint = cameraFromWorld * world
 
                     if cameraPoint.z < -0.05 {
@@ -138,22 +131,12 @@ final class PointCloudColorSampler {
                                         color: color,
                                         score: 1 / max(simd_length(cameraPosition), 0.05)
                                     )
-                                    if candidate.score > (bestObservation?.score ?? 0) {
-                                        bestObservation = candidate
+                                    let key = Self.spatialKey(for: worldPosition)
+                                    if candidate.score > (observations[key]?.score ?? 0) {
+                                        observations[key] = candidate
                                     }
                                 }
                             }
-                        }
-                    }
-
-                    if let bestObservation {
-                        let key = Self.spatialKey(for: worldPosition)
-                        if bestObservation.score > (updates[key]?.score ?? 0) {
-                            updates[key] = Observation(
-                                position: worldPosition,
-                                color: bestObservation.color,
-                                score: bestObservation.score
-                            )
                         }
                     }
                 }
@@ -164,10 +147,7 @@ final class PointCloudColorSampler {
     /// Waits for the current camera frame to finish and spatially maps retained
     /// observations onto the latest mesh topology.
     func snapshot(alignedTo anchors: [ARMeshAnchor]) -> [UUID: [PointCloudExporter.RGBColor]] {
-        processingQueue.sync {}
-        lock.lock()
-        defer { lock.unlock() }
-        let storedObservations = observations
+        let storedObservations = processingQueue.sync { observations }
 
         var result: [UUID: [PointCloudExporter.RGBColor]] = [:]
         result.reserveCapacity(anchors.count)
@@ -196,9 +176,9 @@ final class PointCloudColorSampler {
     }
 
     func reset() {
-        lock.lock()
-        observations.removeAll()
-        lock.unlock()
+        processingQueue.sync {
+            observations.removeAll()
+        }
     }
 
     static func yCbCrToRGB(
@@ -314,7 +294,7 @@ final class PointCloudColorSampler {
         let measuredDepth = baseAddress.assumingMemoryBound(to: Float32.self)[y * stride + x]
         guard measuredDepth.isFinite, measuredDepth > 0 else { return true }
 
-        let tolerance = max(0.08, cameraDepth * 0.04)
-        return abs(measuredDepth - cameraDepth) <= tolerance
+        let tolerance = max(0.12, cameraDepth * 0.06)
+        return cameraDepth <= measuredDepth + tolerance
     }
 }

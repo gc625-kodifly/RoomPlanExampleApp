@@ -94,6 +94,22 @@ final class PointCloudFormatTests: XCTestCase {
         XCTAssertEqual(filtered[0].color, .init(red: 20, green: 40, blue: 60))
     }
 
+    func testVoxelFilterDoesNotWashObservedColorWithFallback() throws {
+        let observed = PointCloudExporter.RGBColor(red: 20, green: 40, blue: 60)
+        let points = [
+            PointCloudExporter.ColoredPoint(position: .zero, color: observed),
+            PointCloudExporter.ColoredPoint(
+                position: SIMD3<Float>(0.005, 0, 0),
+                color: .fallback
+            )
+        ]
+
+        let filtered = try PointCloudExporter.voxelFiltered(points, voxelSize: 0.02)
+
+        XCTAssertEqual(filtered.count, 1)
+        XCTAssertEqual(filtered[0].color, observed)
+    }
+
     private func temporaryURL(extension fileExtension: String) -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

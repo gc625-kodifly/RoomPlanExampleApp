@@ -69,25 +69,35 @@ enum PointCloudExporter {
         var redSum = 0
         var greenSum = 0
         var blueSum = 0
+        var colorCount = 0
         var count = 0
 
         mutating func add(position: SIMD3<Float>, color: RGBColor) {
             positionSum += position
-            redSum += Int(color.red)
-            greenSum += Int(color.green)
-            blueSum += Int(color.blue)
+            if color != .fallback {
+                redSum += Int(color.red)
+                greenSum += Int(color.green)
+                blueSum += Int(color.blue)
+                colorCount += 1
+            }
             count += 1
         }
 
         var point: ColoredPoint {
             let divisor = Float(max(count, 1))
+            let averagedColor: RGBColor
+            if colorCount > 0 {
+                averagedColor = RGBColor(
+                    red: UInt8(redSum / colorCount),
+                    green: UInt8(greenSum / colorCount),
+                    blue: UInt8(blueSum / colorCount)
+                )
+            } else {
+                averagedColor = .fallback
+            }
             return ColoredPoint(
                 position: positionSum / divisor,
-                color: RGBColor(
-                    red: UInt8(redSum / max(count, 1)),
-                    green: UInt8(greenSum / max(count, 1)),
-                    blue: UInt8(blueSum / max(count, 1))
-                )
+                color: averagedColor
             )
         }
     }
