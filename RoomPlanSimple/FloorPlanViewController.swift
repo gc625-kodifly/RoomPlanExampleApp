@@ -16,21 +16,13 @@ class FloorPlanViewController: UIViewController {
     private let statsLabel = UILabel()
     private let toggleDimensionsButton = UIButton(type: .system)
     private let toggleLabelsButton = UIButton(type: .system)
-    private let toggleWifiButton = UIButton(type: .system)
 
     private var capturedRoom: CapturedRoom?
-    private var wifiSamples: [WiFiSample] = []
 
     // MARK: - Initialization
 
     init(room: CapturedRoom) {
         self.capturedRoom = room
-        super.init(nibName: nil, bundle: nil)
-    }
-
-    init(room: CapturedRoom, wifiSamples: [WiFiSample]) {
-        self.capturedRoom = room
-        self.wifiSamples = wifiSamples
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -48,7 +40,6 @@ class FloorPlanViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        // Clean up resources to prevent memory leaks (Issue #15)
         if isBeingDismissed || isMovingFromParent {
             capturedRoom = nil
             floorPlanView.clear()
@@ -72,7 +63,6 @@ class FloorPlanViewController: UIViewController {
             SpatialSenseTheme.configureNavigationBar(navBar, immersive: true)
         }
 
-        // Navigation bar
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,
             target: self,
@@ -85,13 +75,11 @@ class FloorPlanViewController: UIViewController {
             action: #selector(shareFloorPlan)
         )
 
-        // Floor plan view
         floorPlanView.translatesAutoresizingMaskIntoConstraints = false
         floorPlanView.layer.cornerRadius = SpatialSenseTheme.Radius.lg
         floorPlanView.clipsToBounds = true
         view.addSubview(floorPlanView)
 
-        // Stats label
         statsLabel.translatesAutoresizingMaskIntoConstraints = false
         statsLabel.font = SpatialSenseTheme.Font.caption
         statsLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.75)
@@ -99,7 +87,6 @@ class FloorPlanViewController: UIViewController {
         statsLabel.numberOfLines = 0
         view.addSubview(statsLabel)
 
-        // Toggle buttons container
         let buttonStack = UIStackView()
         buttonStack.translatesAutoresizingMaskIntoConstraints = false
         buttonStack.axis = .horizontal
@@ -114,12 +101,6 @@ class FloorPlanViewController: UIViewController {
         styleToggleButton(toggleLabelsButton, title: "Labels: On")
         toggleLabelsButton.addTarget(self, action: #selector(toggleLabels), for: .touchUpInside)
         buttonStack.addArrangedSubview(toggleLabelsButton)
-
-        if !wifiSamples.isEmpty {
-            styleToggleButton(toggleWifiButton, title: "WiFi: On")
-            toggleWifiButton.addTarget(self, action: #selector(toggleWifi), for: .touchUpInside)
-            buttonStack.addArrangedSubview(toggleWifiButton)
-        }
 
         NSLayoutConstraint.activate([
             floorPlanView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: SpatialSenseTheme.Space.sm),
@@ -148,15 +129,8 @@ class FloorPlanViewController: UIViewController {
     private func configureFloorPlan() {
         guard let room = capturedRoom else { return }
 
-        floorPlanView.configure(with: room, wifiSamples: wifiSamples)
-
-        // Update stats with detailed measurements
-        let stats = ScanStatistics.from(room)
-        var statsText = stats.detailedSummary
-        if !wifiSamples.isEmpty {
-            statsText += "\nWiFi Samples: \(wifiSamples.count)"
-        }
-        statsLabel.text = statsText
+        floorPlanView.configure(with: room)
+        statsLabel.text = ScanStatistics.from(room).detailedSummary
     }
 
     // MARK: - Actions
@@ -175,11 +149,6 @@ class FloorPlanViewController: UIViewController {
         styleToggleButton(toggleLabelsButton, title: "Labels: \(floorPlanView.showLabels ? "On" : "Off")")
     }
 
-    @objc private func toggleWifi() {
-        floorPlanView.showWifiHeatmap.toggle()
-        styleToggleButton(toggleWifiButton, title: "WiFi: \(floorPlanView.showWifiHeatmap ? "On" : "Off")")
-    }
-
     @objc private func shareFloorPlan() {
         let alert = UIAlertController(
             title: L10n.FloorPlan.export.localized,
@@ -187,17 +156,14 @@ class FloorPlanViewController: UIViewController {
             preferredStyle: .actionSheet
         )
 
-        // PNG Image
         alert.addAction(UIAlertAction(title: L10n.Export.pngImage.localized, style: .default) { [weak self] _ in
             self?.exportAsPNG()
         })
 
-        // SVG Vector
         alert.addAction(UIAlertAction(title: L10n.Export.svgVector.localized, style: .default) { [weak self] _ in
             self?.exportAsSVG()
         })
 
-        // DXF CAD
         alert.addAction(UIAlertAction(title: L10n.Export.dxfCad.localized, style: .default) { [weak self] _ in
             self?.exportAsDXF()
         })
@@ -216,11 +182,9 @@ class FloorPlanViewController: UIViewController {
         let image = FloorPlanDocumentRenderer.image(
             data: FloorPlanData.from(room),
             size: CGSize(width: 1600, height: 2000),
-            wifiSamples: wifiSamples,
             options: FloorPlanRenderOptions(
                 showDimensions: floorPlanView.showDimensions,
-                showLabels: floorPlanView.showLabels,
-                showWiFi: floorPlanView.showWifiHeatmap
+                showLabels: floorPlanView.showLabels
             )
         )
 
@@ -276,8 +240,6 @@ class FloorPlanViewController: UIViewController {
         alert.addAction(UIAlertAction(title: L10n.Common.ok.localized, style: .default))
         present(alert, animated: true)
     }
-
-    // MARK: - Public Methods
 
     func updateRoom(_ room: CapturedRoom) {
         self.capturedRoom = room

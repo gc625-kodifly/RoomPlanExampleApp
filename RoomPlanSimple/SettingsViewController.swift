@@ -12,23 +12,17 @@ class SettingsViewController: UITableViewController {
     // MARK: - Types
 
     private enum Section: Int, CaseIterable {
-        case scanning
         case saving
         case language
         case about
 
         var title: String {
             switch self {
-            case .scanning: return L10n.Settings.scanning.localized
             case .saving: return L10n.Settings.saving.localized
             case .language: return L10n.Settings.language.localized
             case .about: return L10n.Settings.about.localized
             }
         }
-    }
-
-    private enum ScanningRow: Int, CaseIterable {
-        case defaultWifiTracking
     }
 
     private enum SavingRow: Int, CaseIterable {
@@ -88,7 +82,6 @@ class SettingsViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         guard let sectionType = Section(rawValue: section) else { return 0 }
         switch sectionType {
-        case .scanning: return ScanningRow.allCases.count
         case .saving: return SavingRow.allCases.count
         case .language: return LanguageRow.allCases.count
         case .about: return AboutRow.allCases.count
@@ -105,10 +98,6 @@ class SettingsViewController: UITableViewController {
         }
 
         switch section {
-        case .scanning:
-            guard let row = ScanningRow(rawValue: indexPath.row) else { return UITableViewCell() }
-            return configureScanningCell(for: row, at: indexPath)
-
         case .saving:
             guard let row = SavingRow(rawValue: indexPath.row) else { return UITableViewCell() }
             return configureSavingCell(for: row, at: indexPath)
@@ -124,21 +113,6 @@ class SettingsViewController: UITableViewController {
     }
 
     // MARK: - Cell Configuration
-
-    private func configureScanningCell(for row: ScanningRow, at indexPath: IndexPath) -> UITableViewCell {
-        switch row {
-        case .defaultWifiTracking:
-            let cell = tableView.dequeueReusableCell(withIdentifier: "SwitchCell", for: indexPath) as! SwitchCell
-            cell.configure(
-                title: L10n.Settings.WiFiTracking.title.localized,
-                subtitle: L10n.Settings.WiFiTracking.subtitle.localized,
-                isOn: settings.defaultWifiTracking
-            ) { [weak self] isOn in
-                self?.settings.defaultWifiTracking = isOn
-            }
-            return cell
-        }
-    }
 
     private func configureSavingCell(for row: SavingRow, at indexPath: IndexPath) -> UITableViewCell {
         switch row {
@@ -244,8 +218,6 @@ class SettingsViewController: UITableViewController {
             if let row = AboutRow(rawValue: indexPath.row), row == .resetSettings {
                 confirmResetSettings()
             }
-        default:
-            break
         }
     }
 

@@ -12,24 +12,13 @@ import ARKit
 @MainActor
 final class CaptureLibraryViewController: UIViewController {
 
-    private enum LibraryCapture {
-        case room(SavedRoom)
-        case pointCloud(SavedPointCloud)
-
-        var date: Date {
-            switch self {
-            case .room(let room): return room.date
-            case .pointCloud(let pointCloud): return pointCloud.date
-            }
-        }
-    }
-
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
     private let capturesStack = UIStackView()
     private let countLabel = UILabel()
     private let emptyState = UIView()
     private let scanButton = UIButton(type: .system)
+    private var lastRenderedColumnCount = 0
 
     private var savedRooms: [SavedRoom] = []
     private var savedPointClouds: [SavedPointCloud] = []
@@ -44,6 +33,14 @@ final class CaptureLibraryViewController: UIViewController {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: animated)
         reloadCaptures()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let columnCount = preferredColumnCount
+        if columnCount != lastRenderedColumnCount, !savedRooms.isEmpty || !savedPointClouds.isEmpty {
+            reloadCaptures()
+        }
     }
 
     private func setupUI() {
@@ -164,17 +161,11 @@ final class CaptureLibraryViewController: UIViewController {
         let card = UIView()
         card.translatesAutoresizingMaskIntoConstraints = false
         card.backgroundColor = SpatialSenseTheme.Color.studioSurface
-        card.layer.cornerRadius = 22
+        card.layer.cornerRadius = SpatialSenseTheme.Radius.lg
         card.layer.cornerCurve = .continuous
         card.layer.borderWidth = 1
         card.layer.borderColor = SpatialSenseTheme.Color.studioBorder.cgColor
         card.clipsToBounds = true
-
-        let glow = UIView()
-        glow.translatesAutoresizingMaskIntoConstraints = false
-        glow.backgroundColor = SpatialSenseTheme.Color.primary.withAlphaComponent(0.16)
-        glow.layer.cornerRadius = 70
-        card.addSubview(glow)
 
         let iconTile = UIView()
         iconTile.translatesAutoresizingMaskIntoConstraints = false
@@ -189,20 +180,23 @@ final class CaptureLibraryViewController: UIViewController {
         iconTile.addSubview(icon)
 
         let eyebrow = UILabel()
-        eyebrow.text = "LiDAR SPACE CAPTURE"
-        eyebrow.font = SpatialSenseTheme.Font.semibold(11, relativeTo: .caption1)
+        eyebrow.text = "SPATIAL CAPTURE"
+        eyebrow.font = SpatialSenseTheme.Font.caption
         eyebrow.textColor = SpatialSenseTheme.Color.primary
 
         let title = UILabel()
         title.text = L10n.Home.NewScan.title.localized
         title.font = SpatialSenseTheme.Font.bold(25, relativeTo: .title2)
         title.textColor = .white
+        title.adjustsFontForContentSizeCategory = true
+        title.numberOfLines = 0
 
         let subtitle = UILabel()
         subtitle.text = L10n.Home.NewScan.subtitle.localized
         subtitle.font = SpatialSenseTheme.Font.body
         subtitle.textColor = UIColor.white.withAlphaComponent(0.58)
         subtitle.numberOfLines = 2
+        subtitle.adjustsFontForContentSizeCategory = true
 
         let labels = UIStackView(arrangedSubviews: [eyebrow, title, subtitle])
         labels.translatesAutoresizingMaskIntoConstraints = false
@@ -229,11 +223,7 @@ final class CaptureLibraryViewController: UIViewController {
         card.addSubview(tap)
 
         NSLayoutConstraint.activate([
-            card.heightAnchor.constraint(equalToConstant: 154),
-            glow.widthAnchor.constraint(equalToConstant: 140),
-            glow.heightAnchor.constraint(equalToConstant: 140),
-            glow.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: 35),
-            glow.topAnchor.constraint(equalTo: card.topAnchor, constant: -55),
+            card.heightAnchor.constraint(greaterThanOrEqualToConstant: 154),
 
             iconTile.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 18),
             iconTile.centerYAnchor.constraint(equalTo: card.centerYAnchor),
@@ -263,7 +253,7 @@ final class CaptureLibraryViewController: UIViewController {
     private func setupEmptyState() {
         emptyState.translatesAutoresizingMaskIntoConstraints = false
         emptyState.backgroundColor = SpatialSenseTheme.Color.studioSurface.withAlphaComponent(0.55)
-        emptyState.layer.cornerRadius = 22
+        emptyState.layer.cornerRadius = SpatialSenseTheme.Radius.lg
         emptyState.layer.cornerCurve = .continuous
         emptyState.layer.borderWidth = 1
         emptyState.layer.borderColor = SpatialSenseTheme.Color.studioBorder.cgColor
@@ -287,19 +277,33 @@ final class CaptureLibraryViewController: UIViewController {
         detail.textAlignment = .center
         detail.numberOfLines = 2
 
+        let createButton = UIButton(type: .system)
+        createButton.translatesAutoresizingMaskIntoConstraints = false
+        createButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+            title: L10n.Home.NewScan.title.localized,
+            systemName: "plus"
+        )
+        createButton.accessibilityIdentifier = "home.empty.newScan"
+        createButton.addTarget(self, action: #selector(startScan), for: .touchUpInside)
+
         emptyState.addSubview(icon)
         emptyState.addSubview(title)
         emptyState.addSubview(detail)
+        emptyState.addSubview(createButton)
 
         NSLayoutConstraint.activate([
-            emptyState.heightAnchor.constraint(equalToConstant: 200),
+            emptyState.heightAnchor.constraint(greaterThanOrEqualToConstant: 246),
             icon.topAnchor.constraint(equalTo: emptyState.topAnchor, constant: 32),
             icon.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor),
             title.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 18),
             title.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor),
             detail.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 8),
             detail.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor, constant: 40),
-            detail.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor, constant: -40)
+            detail.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor, constant: -40),
+            createButton.topAnchor.constraint(equalTo: detail.bottomAnchor, constant: 18),
+            createButton.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor),
+            createButton.bottomAnchor.constraint(lessThanOrEqualTo: emptyState.bottomAnchor, constant: -24),
+            createButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 48)
         ])
     }
 
@@ -314,6 +318,7 @@ final class CaptureLibraryViewController: UIViewController {
 
         let library = makeDockButton(icon: "square.grid.2x2.fill", title: "Library", selected: true)
         library.addTarget(self, action: #selector(showSavedRooms), for: .touchUpInside)
+        library.accessibilityIdentifier = "home.savedRooms"
 
         scanButton.translatesAutoresizingMaskIntoConstraints = false
         scanButton.backgroundColor = SpatialSenseTheme.Color.primary
@@ -325,10 +330,6 @@ final class CaptureLibraryViewController: UIViewController {
         )
         scanButton.layer.cornerRadius = 31
         scanButton.layer.cornerCurve = .continuous
-        scanButton.layer.shadowColor = SpatialSenseTheme.Color.primary.cgColor
-        scanButton.layer.shadowOpacity = 0.35
-        scanButton.layer.shadowRadius = 14
-        scanButton.layer.shadowOffset = CGSize(width: 0, height: 5)
         scanButton.accessibilityIdentifier = "home.newScan.floating"
         scanButton.accessibilityLabel = L10n.Home.NewScan.title.localized
         scanButton.addTarget(self, action: #selector(startScan), for: .touchUpInside)
@@ -344,8 +345,8 @@ final class CaptureLibraryViewController: UIViewController {
         dock.contentView.addSubview(row)
 
         NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: dock.contentView.leadingAnchor, constant: 46),
-            row.trailingAnchor.constraint(equalTo: dock.contentView.trailingAnchor, constant: -46),
+            row.leadingAnchor.constraint(equalTo: dock.contentView.leadingAnchor, constant: 24),
+            row.trailingAnchor.constraint(equalTo: dock.contentView.trailingAnchor, constant: -24),
             row.topAnchor.constraint(equalTo: dock.contentView.topAnchor, constant: 8),
             row.bottomAnchor.constraint(equalTo: dock.contentView.bottomAnchor, constant: -7),
             scanButton.widthAnchor.constraint(equalToConstant: 62),
@@ -380,12 +381,15 @@ final class CaptureLibraryViewController: UIViewController {
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
-            outgoing.font = SpatialSenseTheme.Font.medium(10, relativeTo: .caption2)
+            outgoing.font = SpatialSenseTheme.Font.caption
             return outgoing
         }
         let button = UIButton(configuration: configuration)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.widthAnchor.constraint(equalToConstant: 74).isActive = true
+        button.titleLabel?.numberOfLines = 1
+        button.titleLabel?.adjustsFontSizeToFitWidth = true
+        button.titleLabel?.minimumScaleFactor = 0.85
+        button.widthAnchor.constraint(equalToConstant: 82).isActive = true
         return button
     }
 
@@ -393,8 +397,8 @@ final class CaptureLibraryViewController: UIViewController {
         savedRooms = RoomStorageManager.shared.getSavedRooms()
         savedPointClouds = PointCloudStorageManager.shared.getSavedPointClouds()
         let captures = (
-            savedRooms.map(LibraryCapture.room) +
-            savedPointClouds.map(LibraryCapture.pointCloud)
+            savedRooms.map(LibraryCaptureItem.room) +
+            savedPointClouds.map(LibraryCaptureItem.pointCloud)
         ).sorted { $0.date > $1.date }
 
         countLabel.text = captures.isEmpty
@@ -405,6 +409,8 @@ final class CaptureLibraryViewController: UIViewController {
         emptyState.isHidden = !captures.isEmpty
 
         let visibleCaptures = Array(captures.prefix(6))
+        let columnCount = preferredColumnCount
+        lastRenderedColumnCount = columnCount
         var index = 0
         while index < visibleCaptures.count {
             let row = UIStackView()
@@ -413,18 +419,22 @@ final class CaptureLibraryViewController: UIViewController {
             row.distribution = .fillEqually
 
             row.addArrangedSubview(makeCard(for: visibleCaptures[index]))
-            if index + 1 < visibleCaptures.count {
+            if columnCount == 2, index + 1 < visibleCaptures.count {
                 row.addArrangedSubview(makeCard(for: visibleCaptures[index + 1]))
-            } else {
+            } else if columnCount == 2 {
                 row.addArrangedSubview(UIView())
             }
 
             capturesStack.addArrangedSubview(row)
-            index += 2
+            index += columnCount
         }
     }
 
-    private func makeCard(for capture: LibraryCapture) -> ScanCardView {
+    private var preferredColumnCount: Int {
+        view.bounds.width >= 700 ? 2 : 1
+    }
+
+    private func makeCard(for capture: LibraryCaptureItem) -> ScanCardView {
         switch capture {
         case .room(let room):
             return makeCard(for: room)
@@ -446,30 +456,45 @@ final class CaptureLibraryViewController: UIViewController {
     }
 
     private func checkDeviceCapability() {
-        guard !RoomCaptureSession.isSupported else { return }
-        scanButton.isEnabled = false
-        scanButton.alpha = 0.4
+        scanButton.accessibilityValue = RoomCaptureSession.isSupported
+            ? "Room model and point cloud available"
+            : "Scanning is unavailable on this device"
     }
 
     @objc private func startScan() {
-        guard RoomCaptureSession.isSupported else {
-            showUnsupportedDeviceAlert()
-            return
-        }
-
         let sheet = UIAlertController(
             title: "New Scan",
-            message: "Choose the output you want to capture.",
+            message: "Choose the spatial output that fits your work.",
             preferredStyle: .actionSheet
         )
-        sheet.addAction(UIAlertAction(title: "Room Model", style: .default) { [weak self] _ in
+        let roomAction = UIAlertAction(
+            title: "Room model — walls, openings, 2D plan",
+            style: .default
+        ) { [weak self] _ in
             self?.presentRoomScan()
-        })
+        }
+        roomAction.accessibilityIdentifier = "newScan.roomModel"
+        roomAction.isEnabled = RoomCaptureSession.isSupported
+        sheet.addAction(roomAction)
 
-        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
-            sheet.addAction(UIAlertAction(title: "PCD Point Cloud", style: .default) { [weak self] _ in
-                self?.presentPointCloudScan()
-            })
+        let pointCloudSupported = ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification)
+        let pointCloudAction = UIAlertAction(
+            title: "Point cloud — mesh vertices, PCD export",
+            style: .default
+        ) { [weak self] _ in
+            self?.presentPointCloudScan()
+        }
+        pointCloudAction.accessibilityIdentifier = "newScan.pointCloud"
+        pointCloudAction.isEnabled = pointCloudSupported
+        sheet.addAction(pointCloudAction)
+
+        if !RoomCaptureSession.isSupported || !pointCloudSupported {
+            let unavailable = UIAlertAction(
+                title: "Some scan modes require a LiDAR-equipped device",
+                style: .default
+            )
+            unavailable.isEnabled = false
+            sheet.addAction(unavailable)
         }
 
         sheet.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
@@ -587,13 +612,4 @@ final class CaptureLibraryViewController: UIViewController {
         present(sheet, animated: true)
     }
 
-    private func showUnsupportedDeviceAlert() {
-        let alert = UIAlertController(
-            title: L10n.Alert.unsupportedDeviceTitle.localized,
-            message: L10n.Alert.unsupportedDeviceMessage.localized,
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: L10n.Common.ok.localized, style: .default))
-        present(alert, animated: true)
-    }
 }

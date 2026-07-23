@@ -93,7 +93,7 @@ final class PhotoCaptureManager: NSObject, @unchecked Sendable {
         for photo in photos {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(photo.fileName)
             let destURL = photosDir.appendingPathComponent(photo.fileName)
-            try? FileManager.default.copyItem(at: tempURL, to: destURL)
+            try FileManager.default.copyItem(at: tempURL, to: destURL)
         }
 
         return photos

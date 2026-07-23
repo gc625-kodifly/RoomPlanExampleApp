@@ -53,21 +53,11 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         sceneView.preferredFramesPerSecond = 60
         view.addSubview(sceneView)
 
-        let scanTint = UIView()
-        scanTint.translatesAutoresizingMaskIntoConstraints = false
-        scanTint.backgroundColor = SpatialSenseTheme.Color.primary.withAlphaComponent(0.08)
-        scanTint.isUserInteractionEnabled = false
-        view.addSubview(scanTint)
-
         NSLayoutConstraint.activate([
             sceneView.topAnchor.constraint(equalTo: view.topAnchor),
             sceneView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             sceneView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            sceneView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            scanTint.topAnchor.constraint(equalTo: sceneView.topAnchor),
-            scanTint.leadingAnchor.constraint(equalTo: sceneView.leadingAnchor),
-            scanTint.trailingAnchor.constraint(equalTo: sceneView.trailingAnchor),
-            scanTint.bottomAnchor.constraint(equalTo: sceneView.bottomAnchor)
+            sceneView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
         configuration.sceneReconstruction = .meshWithClassification
@@ -99,49 +89,43 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         instructionLabel.textAlignment = .center
         instructionLabel.numberOfLines = 2
 
-        let bottomBar = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
-        bottomBar.translatesAutoresizingMaskIntoConstraints = false
-        bottomBar.layer.cornerRadius = 28
-        bottomBar.layer.cornerCurve = .continuous
-        bottomBar.clipsToBounds = true
-
         configurePauseButton()
         configureDoneButton()
 
         view.addSubview(closeButton)
         view.addSubview(statusLabel)
         view.addSubview(instructionLabel)
-        view.addSubview(bottomBar)
-        bottomBar.contentView.addSubview(pauseButton)
-        bottomBar.contentView.addSubview(doneButton)
+        let trailingControls = UIStackView(arrangedSubviews: [pauseButton, doneButton])
+        trailingControls.translatesAutoresizingMaskIntoConstraints = false
+        trailingControls.axis = .vertical
+        trailingControls.alignment = .trailing
+        trailingControls.spacing = 12
+        view.addSubview(trailingControls)
 
         NSLayoutConstraint.activate([
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
+            closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
 
             statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 18),
-            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
-            statusLabel.heightAnchor.constraint(equalToConstant: 36),
-
-            bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -14),
-            bottomBar.heightAnchor.constraint(equalToConstant: 94),
+            statusLabel.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 12),
+            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            statusLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 36),
 
             instructionLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            instructionLabel.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -14),
+            instructionLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 12),
             instructionLabel.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -48),
             instructionLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 34),
 
-            pauseButton.leadingAnchor.constraint(equalTo: bottomBar.contentView.leadingAnchor, constant: 24),
-            pauseButton.centerYAnchor.constraint(equalTo: bottomBar.contentView.centerYAnchor),
-            pauseButton.widthAnchor.constraint(equalToConstant: 58),
-            pauseButton.heightAnchor.constraint(equalToConstant: 58),
-
-            doneButton.trailingAnchor.constraint(equalTo: bottomBar.contentView.trailingAnchor, constant: -24),
-            doneButton.centerYAnchor.constraint(equalTo: bottomBar.contentView.centerYAnchor),
+            trailingControls.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            trailingControls.bottomAnchor.constraint(
+                lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor,
+                constant: -24
+            ),
+            trailingControls.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
+            pauseButton.widthAnchor.constraint(equalToConstant: 48),
+            pauseButton.heightAnchor.constraint(equalToConstant: 48),
             doneButton.heightAnchor.constraint(equalToConstant: 48),
-            doneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 120)
+            doneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 132)
         ])
     }
 
@@ -152,6 +136,8 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         button.tintColor = .white
         button.backgroundColor = UIColor.black.withAlphaComponent(0.7)
         button.layer.cornerRadius = diameter / 2
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
         button.widthAnchor.constraint(equalToConstant: diameter).isActive = true
         button.heightAnchor.constraint(equalToConstant: diameter).isActive = true
         return button
@@ -162,23 +148,24 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         pauseButton.setImage(UIImage(systemName: "pause.fill"), for: .normal)
         pauseButton.tintColor = .white
         pauseButton.backgroundColor = UIColor.white.withAlphaComponent(0.12)
-        pauseButton.layer.cornerRadius = 29
+        pauseButton.layer.cornerRadius = 24
+        pauseButton.layer.cornerCurve = .continuous
         pauseButton.layer.borderWidth = 1
         pauseButton.layer.borderColor = UIColor.white.withAlphaComponent(0.45).cgColor
         pauseButton.addTarget(self, action: #selector(togglePause), for: .touchUpInside)
+        pauseButton.accessibilityIdentifier = "pointCloud.pause"
         pauseButton.accessibilityLabel = "Pause scan"
     }
 
     private func configureDoneButton() {
         doneButton.translatesAutoresizingMaskIntoConstraints = false
-        var configuration = UIButton.Configuration.filled()
-        configuration.title = "Done"
-        configuration.image = UIImage(systemName: "checkmark")
-        configuration.imagePadding = 8
-        configuration.baseBackgroundColor = SpatialSenseTheme.Color.primary
-        configuration.baseForegroundColor = .white
-        configuration.cornerStyle = .capsule
-        doneButton.configuration = configuration
+        doneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+            title: "Finish scan",
+            systemName: "checkmark"
+        )
+        doneButton.accessibilityIdentifier = "pointCloud.finish"
+        doneButton.accessibilityLabel = "Finish point cloud scan"
+        doneButton.accessibilityHint = "Stops capture and saves the point cloud."
         doneButton.addTarget(self, action: #selector(finishCapture), for: .touchUpInside)
     }
 
@@ -224,12 +211,14 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         if isPaused {
             startSession(reset: false)
             pauseButton.accessibilityLabel = "Pause scan"
+            statusLabel.text = "  Building point cloud…  "
         } else {
             sceneView.session.pause()
             colorSamplingTimer?.invalidate()
             isPaused = true
             pauseButton.setImage(UIImage(systemName: "play.fill"), for: .normal)
             pauseButton.accessibilityLabel = "Resume scan"
+            statusLabel.text = "  Scan paused  "
         }
     }
 
@@ -249,6 +238,7 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         }
 
         isFinishing = true
+        UIAccessibility.post(notification: .announcement, argument: "Saving point cloud")
         doneButton.isEnabled = false
         pauseButton.isEnabled = false
         instructionLabel.text = "Saving point cloud…"
@@ -261,6 +251,7 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
                 colorsByAnchor: colorSampler.snapshot(alignedTo: anchors)
             )
             showSavedConfirmation(capture)
+            UIAccessibility.post(notification: .announcement, argument: "Point cloud saved")
         } catch {
             isFinishing = false
             doneButton.isEnabled = true

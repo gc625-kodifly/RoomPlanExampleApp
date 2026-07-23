@@ -6,7 +6,6 @@ A stub scene delegate for the sample app.
 */
 
 import UIKit
-import RoomPlan
 
 @MainActor
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
@@ -21,7 +20,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // The "Start Scan" button will be disabled if LiDAR is not available
         let window = UIWindow(windowScene: windowScene)
 
-        // Create HomeViewController with a UINavigationController
         let homeVC = CaptureLibraryViewController()
         let navController = UINavigationController(rootViewController: homeVC)
         navController.navigationBar.prefersLargeTitles = false
@@ -32,5 +30,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.makeKeyAndVisible()
         self.window = window
     }
+
 }
 

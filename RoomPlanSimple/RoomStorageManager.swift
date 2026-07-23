@@ -19,9 +19,17 @@ final class RoomStorageManager {
     private let fileManager = FileManager.default
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let storageDirectoryOverride: URL?
 
     /// Directory for saved rooms - uses iCloud if enabled, otherwise local storage
     private var savedRoomsDirectory: URL {
+        if let storageDirectoryOverride {
+            try? fileManager.createDirectory(
+                at: storageDirectoryOverride,
+                withIntermediateDirectories: true
+            )
+            return storageDirectoryOverride
+        }
         let baseDir: URL
 
         // Use iCloud if enabled and available
@@ -91,80 +99,62 @@ final class RoomStorageManager {
         return roomsDir
     }
 
-    private init() {}
+    init(storageDirectory: URL? = nil) {
+        storageDirectoryOverride = storageDirectory
+    }
 
     // MARK: - Public API
 
     /// Save a captured room with metadata and floor plan image
-    func saveRoom(_ room: CapturedRoom, name: String? = nil, photoManager: PhotoCaptureManager? = nil, wifiManager: WiFiSignalManager? = nil) throws -> SavedRoom {
+    func saveRoom(_ room: CapturedRoom, name: String? = nil, photoManager: PhotoCaptureManager? = nil) throws -> SavedRoom {
         let id = UUID()
         let timestamp = Date()
         let roomName = name ?? "Room \(formatDate(timestamp))"
+        let packageURL = savedRoomsDirectory.appendingPathComponent(id.uuidString, isDirectory: true)
+        let stagingURL = savedRoomsDirectory.appendingPathComponent(".\(id.uuidString).staging", isDirectory: true)
+        try fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+        var committed = false
+        defer {
+            if !committed {
+                try? fileManager.removeItem(at: stagingURL)
+            }
+        }
 
-        // Export room to USDZ in saved rooms directory
-        let usdzURL = savedRoomsDirectory.appendingPathComponent("\(id.uuidString).usdz")
+        let usdzURL = stagingURL.appendingPathComponent("\(id.uuidString).usdz")
         try room.export(to: usdzURL, exportOptions: .parametric)
 
-        // Generate and save floor plan image
         let floorPlanFileName = "\(id.uuidString)_floorplan.png"
-        let floorPlanURL = savedRoomsDirectory.appendingPathComponent(floorPlanFileName)
-        saveFloorPlanImage(for: room, to: floorPlanURL)
-
-        // Save floor plan data for SVG/DXF export
+        let floorPlanURL = stagingURL.appendingPathComponent(floorPlanFileName)
         let floorPlanData = FloorPlanData.from(room)
+        try saveFloorPlanImage(data: floorPlanData, to: floorPlanURL)
+
         let floorPlanDataFileName = "\(id.uuidString)_floorplan.json"
-        let floorPlanDataURL = savedRoomsDirectory.appendingPathComponent(floorPlanDataFileName)
-        if let data = try? encoder.encode(floorPlanData) {
-            try? data.write(to: floorPlanDataURL)
-        }
+        let floorPlanDataURL = stagingURL.appendingPathComponent(floorPlanDataFileName)
+        let encodedFloorPlan = try encoder.encode(floorPlanData)
+        try encodedFloorPlan.write(to: floorPlanDataURL, options: .atomic)
+        _ = try decoder.decode(FloorPlanData.self, from: Data(contentsOf: floorPlanDataURL))
 
         // Detect room type
         let roomTypeResult = RoomTypeDetector.detectRoomType(from: room)
 
         // Save photos if photo manager provided
         if let photoManager = photoManager, photoManager.photoCount > 0 {
-            do {
-                let roomDirectory = savedRoomsDirectory.appendingPathComponent(id.uuidString, isDirectory: true)
-                _ = try photoManager.copyPhotos(to: roomDirectory)
-                #if DEBUG
-                print("📸 Saved \(photoManager.photoCount) photos to \(roomDirectory.path)")
-                #endif
-            } catch {
-                #if DEBUG
-                print("⚠️  Failed to save photos: \(error)")
-                #endif
-            }
-        }
-
-        // Save WiFi samples if WiFi manager provided
-        var wifiURL: URL? = nil
-        if let wifiManager = wifiManager, wifiManager.sampleCount > 0 {
-            let wifiSamples = wifiManager.collectedSamples
-            let wifiFileName = "\(id.uuidString)_wifi.json"
-            let url = savedRoomsDirectory.appendingPathComponent(wifiFileName)
-            if let data = try? encoder.encode(wifiSamples) {
-                try? data.write(to: url)
-                wifiURL = url
-                #if DEBUG
-                print("📡 Saved \(wifiSamples.count) WiFi samples to \(url.path)")
-                #endif
-            }
+            _ = try photoManager.copyPhotos(to: stagingURL)
         }
 
         // Create metadata
-        let stats = ScanStatistics.from(room)
         let metadata = SavedRoom(
             id: id,
             name: roomName,
             date: timestamp,
-            wallCount: stats.wallCount,
-            doorCount: stats.doorCount,
-            windowCount: stats.windowCount,
-            objectCount: stats.objectCount,
-            floorArea: stats.floorArea,
-            roomWidth: stats.roomWidth,
-            roomHeight: stats.roomHeight,
-            roomDepth: stats.roomDepth,
+            wallCount: room.walls.count,
+            doorCount: room.doors.count,
+            windowCount: room.windows.count,
+            objectCount: room.objects.count,
+            floorArea: floorPlanData.roomArea,
+            roomWidth: floorPlanData.roomDimensions.width,
+            roomHeight: floorPlanData.roomDimensions.height,
+            roomDepth: floorPlanData.roomDimensions.depth,
             usdzFileName: "\(id.uuidString).usdz",
             floorPlanFileName: floorPlanFileName,
             roomType: roomTypeResult.roomType,
@@ -172,28 +162,34 @@ final class RoomStorageManager {
         )
 
         // Save metadata
-        let metadataURL = savedRoomsDirectory.appendingPathComponent("\(id.uuidString).json")
+        let metadataURL = stagingURL.appendingPathComponent("\(id.uuidString).json")
         let data = try encoder.encode(metadata)
-        try data.write(to: metadataURL)
+        try data.write(to: metadataURL, options: .atomic)
+        _ = try decoder.decode(SavedRoom.self, from: Data(contentsOf: metadataURL))
+
+        try fileManager.moveItem(at: stagingURL, to: packageURL)
+        committed = true
 
         // Trigger iCloud sync if using iCloud
         if AppSettings.shared.iCloudSyncEnabled {
-            triggerICloudSync(for: [usdzURL, floorPlanURL, floorPlanDataURL, wifiURL, metadataURL].compactMap { $0 })
+            let committedURLs = [usdzURL, floorPlanURL, floorPlanDataURL, metadataURL]
+                .map { packageURL.appendingPathComponent($0.lastPathComponent) }
+            triggerICloudSync(for: committedURLs)
         }
 
         return metadata
     }
 
-    private func saveFloorPlanImage(for room: CapturedRoom, to url: URL) {
-        let data = FloorPlanData.from(room)
+    private func saveFloorPlanImage(data: FloorPlanData, to url: URL) throws {
         let image = FloorPlanDocumentRenderer.image(
             data: data,
             size: CGSize(width: 1600, height: 2000)
         )
 
-        if let pngData = image.pngData() {
-            try? pngData.write(to: url)
+        guard let pngData = image.pngData() else {
+            throw CocoaError(.fileWriteUnknown)
         }
+        try pngData.write(to: url, options: .atomic)
     }
 
     /// Get all saved rooms
@@ -217,8 +213,15 @@ final class RoomStorageManager {
         print("📋 Found \(jsonFiles.count) JSON files")
         #endif
 
-        return files
-            .filter { $0.pathExtension == "json" }
+        let metadataFiles = files.filter { $0.pathExtension == "json" } + files.compactMap { url in
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                return nil
+            }
+            let metadata = url.appendingPathComponent("\(url.lastPathComponent).json")
+            return fileManager.fileExists(atPath: metadata.path) ? metadata : nil
+        }
+        return metadataFiles
             .compactMap { url -> SavedRoom? in
                 guard let data = try? Data(contentsOf: url),
                       let room = try? decoder.decode(SavedRoom.self, from: data) else {
@@ -238,28 +241,18 @@ final class RoomStorageManager {
 
     /// Get the URL for a specific room file
     func getRoomFileURL(for room: SavedRoom, filename: String) -> URL {
-        return savedRoomsDirectory.appendingPathComponent(filename)
-    }
-
-    /// Load WiFi samples for a saved room
-    func loadWiFiSamples(for room: SavedRoom) -> [WiFiSample] {
-        let wifiURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_wifi.json")
-        guard let data = try? Data(contentsOf: wifiURL),
-              let samples = try? decoder.decode([WiFiSample].self, from: data) else {
-            return []
-        }
-        return samples
+        artifactURL(for: room, filename: filename)
     }
 
     /// Get USDZ file URL for a saved room
     func getUsdzURL(for room: SavedRoom) -> URL {
-        savedRoomsDirectory.appendingPathComponent(room.usdzFileName)
+        artifactURL(for: room, filename: room.usdzFileName)
     }
 
     /// Get floor plan image URL for a saved room
     func getFloorPlanURL(for room: SavedRoom) -> URL? {
         guard let fileName = room.floorPlanFileName else { return nil }
-        let url = savedRoomsDirectory.appendingPathComponent(fileName)
+        let url = artifactURL(for: room, filename: fileName)
         return fileManager.fileExists(atPath: url.path) ? url : nil
     }
 
@@ -355,7 +348,7 @@ final class RoomStorageManager {
 
     /// Load floor plan data for a saved room
     func loadFloorPlanData(for room: SavedRoom) -> FloorPlanData? {
-        let dataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_floorplan.json")
+        let dataURL = artifactURL(for: room, filename: "\(room.id.uuidString)_floorplan.json")
         guard let data = try? Data(contentsOf: dataURL),
               let floorPlanData = try? decoder.decode(FloorPlanData.self, from: data) else {
             return nil
@@ -376,11 +369,7 @@ final class RoomStorageManager {
         // Clean up any existing file
         try? fileManager.removeItem(at: svgURL)
 
-        // Load WiFi samples if available
-        let wifiSamples = loadWiFiSamples(for: room)
-
-        // Generate SVG with WiFi data
-        let svgContent = FloorPlanExporter.exportToSVG(data: floorPlanData, wifiSamples: wifiSamples, includeDimensions: true)
+        let svgContent = FloorPlanExporter.exportToSVG(data: floorPlanData, includeDimensions: true)
         try svgContent.write(to: svgURL, atomically: true, encoding: .utf8)
 
         return svgURL
@@ -399,11 +388,7 @@ final class RoomStorageManager {
         // Clean up any existing file
         try? fileManager.removeItem(at: dxfURL)
 
-        // Load WiFi samples if available
-        let wifiSamples = loadWiFiSamples(for: room)
-
-        // Generate DXF with WiFi data
-        let dxfContent = FloorPlanExporter.exportToDXF(data: floorPlanData, wifiSamples: wifiSamples, includeDimensions: true)
+        let dxfContent = FloorPlanExporter.exportToDXF(data: floorPlanData, includeDimensions: true)
         try dxfContent.write(to: dxfURL, atomically: true, encoding: .utf8)
 
         return dxfURL
@@ -451,16 +436,28 @@ final class RoomStorageManager {
 
     /// Delete a saved room
     func deleteRoom(_ room: SavedRoom) throws {
-        let usdzURL = savedRoomsDirectory.appendingPathComponent(room.usdzFileName)
-        let metadataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString).json")
-
-        try? fileManager.removeItem(at: usdzURL)
-        try? fileManager.removeItem(at: metadataURL)
-
-        // Also delete floor plan image
-        if let floorPlanFileName = room.floorPlanFileName {
-            let floorPlanURL = savedRoomsDirectory.appendingPathComponent(floorPlanFileName)
-            try? fileManager.removeItem(at: floorPlanURL)
+        let packageURL = savedRoomsDirectory.appendingPathComponent(room.id.uuidString, isDirectory: true)
+        let packagedMetadata = packageURL.appendingPathComponent("\(room.id.uuidString).json")
+        if fileManager.fileExists(atPath: packagedMetadata.path) {
+            try fileManager.removeItem(at: packageURL)
+            return
+        }
+        let filenames = [
+            room.usdzFileName,
+            "\(room.id.uuidString).json",
+            room.floorPlanFileName,
+            "\(room.id.uuidString)_floorplan.json",
+            "\(room.id.uuidString)_wifi.json"
+        ].compactMap { $0 }
+        for filename in filenames {
+            let url = savedRoomsDirectory.appendingPathComponent(filename)
+            if fileManager.fileExists(atPath: url.path) {
+                try fileManager.removeItem(at: url)
+            }
+        }
+        let legacyPhotoDirectory = savedRoomsDirectory.appendingPathComponent(room.id.uuidString, isDirectory: true)
+        if fileManager.fileExists(atPath: legacyPhotoDirectory.path) {
+            try fileManager.removeItem(at: legacyPhotoDirectory)
         }
     }
 
@@ -575,24 +572,17 @@ final class RoomStorageManager {
         }
 
         // Copy floor plan data JSON
-        let floorPlanDataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_floorplan.json")
+        let floorPlanDataURL = artifactURL(for: room, filename: "\(room.id.uuidString)_floorplan.json")
         if fileManager.fileExists(atPath: floorPlanDataURL.path) {
             let destFloorPlanData = exportDir.appendingPathComponent("\(room.name)_floorplan.json")
             try fileManager.copyItem(at: floorPlanDataURL, to: destFloorPlanData)
         }
 
         // Copy metadata JSON
-        let metadataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString).json")
+        let metadataURL = artifactURL(for: room, filename: "\(room.id.uuidString).json")
         if fileManager.fileExists(atPath: metadataURL.path) {
             let destMetadata = exportDir.appendingPathComponent("\(room.name)_metadata.json")
             try fileManager.copyItem(at: metadataURL, to: destMetadata)
-        }
-
-        // Copy WiFi data
-        let wifiURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_wifi.json")
-        if fileManager.fileExists(atPath: wifiURL.path) {
-            let destWiFi = exportDir.appendingPathComponent("\(room.name)_wifi.json")
-            try fileManager.copyItem(at: wifiURL, to: destWiFi)
         }
 
         // Copy photos
@@ -624,7 +614,7 @@ final class RoomStorageManager {
         // The folder will be exported with all contents
         #if DEBUG
         print("📦 Created export folder at: \(exportDir.path)")
-        print("   Contents: USDZ, floor plan, metadata, WiFi data, photos")
+        print("   Contents: USDZ, floor plan, metadata, photos")
         #endif
 
         // Return the temp directory - UIActivityViewController can share folders on iOS 13+
@@ -639,15 +629,36 @@ final class RoomStorageManager {
         return formatter.string(from: date)
     }
 
+    private func artifactURL(for room: SavedRoom, filename: String) -> URL {
+        let packaged = savedRoomsDirectory
+            .appendingPathComponent(room.id.uuidString, isDirectory: true)
+            .appendingPathComponent(filename)
+        if fileManager.fileExists(atPath: packaged.path) {
+            return packaged
+        }
+        return savedRoomsDirectory.appendingPathComponent(filename)
+    }
+
     /// Update room metadata (name, notes)
     func updateRoom(_ room: SavedRoom) throws {
         var updatedRoom = room
         updatedRoom.lastModified = Date()
 
         // Save updated metadata
-        let metadataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString).json")
+        let metadataURL = artifactURL(for: room, filename: "\(room.id.uuidString).json")
+        let temporaryURL = metadataURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(".\(room.id.uuidString).metadata-\(UUID().uuidString).tmp")
+        defer { try? fileManager.removeItem(at: temporaryURL) }
         let data = try encoder.encode(updatedRoom)
-        try data.write(to: metadataURL)
+        try data.write(to: temporaryURL, options: .atomic)
+        _ = try decoder.decode(SavedRoom.self, from: Data(contentsOf: temporaryURL))
+        _ = try fileManager.replaceItemAt(
+            metadataURL,
+            withItemAt: temporaryURL,
+            backupItemName: nil,
+            options: []
+        )
 
         #if DEBUG
         print("📝 Updated room: \(updatedRoom.name)")
@@ -790,15 +801,9 @@ final class RoomStorageManager {
             }
 
             // Copy metadata
-            let metadataURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString).json")
+            let metadataURL = artifactURL(for: room, filename: "\(room.id.uuidString).json")
             if fileManager.fileExists(atPath: metadataURL.path) {
                 try? fileManager.copyItem(at: metadataURL, to: roomFolder.appendingPathComponent("\(room.name)_metadata.json"))
-            }
-
-            // Copy WiFi data
-            let wifiURL = savedRoomsDirectory.appendingPathComponent("\(room.id.uuidString)_wifi.json")
-            if fileManager.fileExists(atPath: wifiURL.path) {
-                try? fileManager.copyItem(at: wifiURL, to: roomFolder.appendingPathComponent("\(room.name)_wifi.json"))
             }
 
             // Copy photos

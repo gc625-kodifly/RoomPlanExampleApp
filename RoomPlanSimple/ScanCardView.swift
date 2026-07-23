@@ -50,7 +50,7 @@ final class ScanCardView: UIView {
         thumbnailView.translatesAutoresizingMaskIntoConstraints = false
         thumbnailView.contentMode = .scaleAspectFill
         thumbnailView.backgroundColor = SpatialSenseTheme.Color.studioSurfaceRaised
-        thumbnailView.layer.cornerRadius = 14
+        thumbnailView.layer.cornerRadius = SpatialSenseTheme.Radius.lg
         thumbnailView.layer.cornerCurve = .continuous
         thumbnailView.clipsToBounds = true
         container.addSubview(thumbnailView)
@@ -80,7 +80,7 @@ final class ScanCardView: UIView {
         summaryLabel.adjustsFontForContentSizeCategory = true
 
         statusTag.translatesAutoresizingMaskIntoConstraints = false
-        statusTag.font = SpatialSenseTheme.Font.micro
+        statusTag.font = SpatialSenseTheme.Font.caption
         statusTag.textColor = SpatialSenseTheme.Color.textOnInverse
         statusTag.backgroundColor = SpatialSenseTheme.Color.primary.withAlphaComponent(0.9)
         statusTag.layer.cornerRadius = 7
@@ -137,8 +137,8 @@ final class ScanCardView: UIView {
 
             overflowButton.topAnchor.constraint(equalTo: container.topAnchor, constant: SpatialSenseTheme.Space.sm),
             overflowButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -SpatialSenseTheme.Space.sm),
-            overflowButton.widthAnchor.constraint(equalToConstant: 36),
-            overflowButton.heightAnchor.constraint(equalToConstant: 36),
+            overflowButton.widthAnchor.constraint(equalToConstant: SpatialSenseTheme.Size.minimumHitTarget),
+            overflowButton.heightAnchor.constraint(equalToConstant: SpatialSenseTheme.Size.minimumHitTarget),
 
             textStack.leadingAnchor.constraint(equalTo: thumbnailView.trailingAnchor, constant: 14),
             textStack.trailingAnchor.constraint(equalTo: overflowButton.leadingAnchor, constant: -SpatialSenseTheme.Space.sm),
@@ -146,7 +146,7 @@ final class ScanCardView: UIView {
             textStack.topAnchor.constraint(greaterThanOrEqualTo: container.topAnchor, constant: SpatialSenseTheme.Space.md),
             textStack.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor, constant: -SpatialSenseTheme.Space.md),
 
-            statusTag.heightAnchor.constraint(equalToConstant: 20),
+            statusTag.heightAnchor.constraint(greaterThanOrEqualToConstant: 24),
             statusTag.widthAnchor.constraint(greaterThanOrEqualToConstant: 64),
 
             tapButton.topAnchor.constraint(equalTo: container.topAnchor),

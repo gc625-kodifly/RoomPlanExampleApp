@@ -8,6 +8,37 @@ SpatialSense-styled browse workspace for saved room scans.
 import UIKit
 import RoomPlan
 
+struct RoomBatchDeletionResult {
+    let deletedRoomIDs: Set<UUID>
+    let failures: [(room: SavedRoom, error: Error)]
+
+    var failedRoomIDs: Set<UUID> {
+        Set(failures.map(\.room.id))
+    }
+}
+
+enum RoomBatchDeletion {
+    static func perform(
+        rooms: [SavedRoom],
+        delete: (SavedRoom) throws -> Void
+    ) -> RoomBatchDeletionResult {
+        var deletedRoomIDs: Set<UUID> = []
+        var failures: [(room: SavedRoom, error: Error)] = []
+        for room in rooms {
+            do {
+                try delete(room)
+                deletedRoomIDs.insert(room.id)
+            } catch {
+                failures.append((room, error))
+            }
+        }
+        return RoomBatchDeletionResult(
+            deletedRoomIDs: deletedRoomIDs,
+            failures: failures
+        )
+    }
+}
+
 class SavedRoomsViewController: UIViewController {
 
     // MARK: - Types
@@ -25,13 +56,14 @@ class SavedRoomsViewController: UIViewController {
 
     // MARK: - Properties
 
-    private var allRooms: [SavedRoom] = []
-    private var filteredRooms: [SavedRoom] = []
-    private var selectedRoomIDs: Set<UUID> = []
+    private var allCaptures: [LibraryCaptureItem] = []
+    private var filteredCaptures: [LibraryCaptureItem] = []
+    private var selectedCaptureIDs: Set<UUID> = []
     private var isSelectMode = false
     private var sortMode: SortMode = .newest
     private var viewMode: ViewMode = .grid
     private var searchQuery = ""
+    private var lastRenderedColumnCount = 0
 
     private let searchBar = UISearchBar()
     private let toolbarRow = UIStackView()
@@ -57,7 +89,7 @@ class SavedRoomsViewController: UIViewController {
                 do {
                     let migratedCount = try RoomStorageManager.shared.migrateToICloud()
                     if migratedCount > 0 {
-                        await MainActor.run { self.loadSavedRooms() }
+                        await MainActor.run { self.loadLibraryItems() }
                     }
                 } catch {
                     print("⚠️ Auto-migration failed: \(error)")
@@ -71,7 +103,15 @@ class SavedRoomsViewController: UIViewController {
         if let navBar = navigationController?.navigationBar {
             SpatialSenseTheme.configureNavigationBar(navBar, immersive: true)
         }
-        loadSavedRooms()
+        loadLibraryItems()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let columns = preferredGridColumnCount
+        if viewMode == .grid, columns != lastRenderedColumnCount, !filteredCaptures.isEmpty {
+            renderCaptures()
+        }
     }
 
     // MARK: - Setup
@@ -222,7 +262,7 @@ class SavedRoomsViewController: UIViewController {
                 target: self,
                 action: #selector(toggleSelectMode)
             )
-            selectButton.isEnabled = !allRooms.isEmpty
+            selectButton.isEnabled = !allCaptures.isEmpty
             let addButton = UIBarButtonItem(
                 image: UIImage(systemName: "plus.circle.fill"),
                 style: .plain,
@@ -235,7 +275,7 @@ class SavedRoomsViewController: UIViewController {
     }
 
     private func updateSelectionToolbar() {
-        let selectedCount = selectedRoomIDs.count
+        let selectedCount = selectedCaptureIDs.count
         let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
 
         let countLabel = UILabel()
@@ -259,42 +299,53 @@ class SavedRoomsViewController: UIViewController {
             target: self,
             action: #selector(exportSelectedRooms)
         )
-        exportButton.isEnabled = selectedCount > 0
+        exportButton.isEnabled = allCaptures.contains {
+            guard selectedCaptureIDs.contains($0.id) else { return false }
+            if case .room = $0 { return true }
+            return false
+        }
 
         selectionToolbar.setItems([deleteButton, flexSpace, countItem, flexSpace, exportButton], animated: true)
     }
 
     // MARK: - Data
 
-    private func loadSavedRooms() {
-        allRooms = RoomStorageManager.shared.getSavedRooms()
+    private func loadLibraryItems() {
+        let rooms = RoomStorageManager.shared.getSavedRooms().map(LibraryCaptureItem.room)
+        let pointClouds = PointCloudStorageManager.shared.getSavedPointClouds().map(LibraryCaptureItem.pointCloud)
+        allCaptures = rooms + pointClouds
         applyFiltersAndReload()
         updateNavigationButtons()
     }
 
     private func applyFiltersAndReload() {
-        var rooms = allRooms
+        var captures = allCaptures
 
         if !searchQuery.isEmpty {
-            rooms = rooms.filter {
-                $0.name.localizedCaseInsensitiveContains(searchQuery)
-                || $0.summary.localizedCaseInsensitiveContains(searchQuery)
-                || ($0.notes?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+            captures = captures.filter { item in
+                switch item {
+                case .room(let room):
+                    return room.name.localizedCaseInsensitiveContains(searchQuery)
+                        || room.summary.localizedCaseInsensitiveContains(searchQuery)
+                        || (room.notes?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+                case .pointCloud(let pointCloud):
+                    return pointCloud.name.localizedCaseInsensitiveContains(searchQuery)
+                }
             }
         }
 
         switch sortMode {
         case .newest:
-            rooms.sort { $0.date > $1.date }
+            captures.sort { $0.date > $1.date }
         case .oldest:
-            rooms.sort { $0.date < $1.date }
+            captures.sort { $0.date < $1.date }
         case .name:
-            rooms.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            captures.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
 
-        filteredRooms = rooms
+        filteredCaptures = captures
         updateSortButtonTitle()
-        renderRooms()
+        renderCaptures()
     }
 
     private func updateSortButtonTitle() {
@@ -316,12 +367,12 @@ class SavedRoomsViewController: UIViewController {
         sortButton.showsMenuAsPrimaryAction = true
     }
 
-    private func renderRooms() {
+    private func renderCaptures() {
         contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        if filteredRooms.isEmpty {
+        if filteredCaptures.isEmpty {
             emptyLabel.isHidden = false
-            emptyLabel.text = allRooms.isEmpty
+            emptyLabel.text = allCaptures.isEmpty
                 ? "\(L10n.SavedRooms.emptyTitle.localized)\n\(L10n.SavedRooms.empty.localized)"
                 : L10n.SavedRooms.noResults.localized
             return
@@ -330,30 +381,66 @@ class SavedRoomsViewController: UIViewController {
         emptyLabel.isHidden = true
 
         if viewMode == .list {
-            for room in filteredRooms {
-                contentStack.addArrangedSubview(makeCard(for: room))
+            lastRenderedColumnCount = 1
+            for capture in filteredCaptures {
+                contentStack.addArrangedSubview(makeCard(for: capture))
             }
         } else {
+            let columnCount = preferredGridColumnCount
+            lastRenderedColumnCount = columnCount
             var index = 0
-            while index < filteredRooms.count {
+            while index < filteredCaptures.count {
                 let row = UIStackView()
                 row.axis = .horizontal
                 row.spacing = SpatialSenseTheme.Space.md
                 row.distribution = .fillEqually
 
-                let first = makeCard(for: filteredRooms[index])
+                let first = makeCard(for: filteredCaptures[index])
                 row.addArrangedSubview(first)
 
-                if index + 1 < filteredRooms.count {
-                    row.addArrangedSubview(makeCard(for: filteredRooms[index + 1]))
-                } else {
+                if columnCount == 2, index + 1 < filteredCaptures.count {
+                    row.addArrangedSubview(makeCard(for: filteredCaptures[index + 1]))
+                } else if columnCount == 2 {
                     let spacer = UIView()
                     row.addArrangedSubview(spacer)
                 }
 
                 contentStack.addArrangedSubview(row)
-                index += 2
+                index += columnCount
             }
+        }
+    }
+
+    private var preferredGridColumnCount: Int {
+        view.bounds.width >= 700 ? 2 : 1
+    }
+
+    private func makeCard(for capture: LibraryCaptureItem) -> ScanCardView {
+        switch capture {
+        case .room(let room):
+            return makeCard(for: room)
+        case .pointCloud(let pointCloud):
+            let card = ScanCardView()
+            card.configure(with: pointCloud, showsOverflow: !isSelectMode)
+            card.setSelectedStyle(selectedCaptureIDs.contains(pointCloud.id))
+            card.onTap = { [weak self] in
+                guard let self else { return }
+                if self.isSelectMode {
+                    if self.selectedCaptureIDs.contains(pointCloud.id) {
+                        self.selectedCaptureIDs.remove(pointCloud.id)
+                    } else {
+                        self.selectedCaptureIDs.insert(pointCloud.id)
+                    }
+                    self.updateSelectionToolbar()
+                    self.renderCaptures()
+                } else {
+                    self.openPointCloud(pointCloud)
+                }
+            }
+            card.onOverflow = { [weak self] in
+                self?.showPointCloudMenu(for: pointCloud)
+            }
+            return card
         }
     }
 
@@ -364,18 +451,18 @@ class SavedRoomsViewController: UIViewController {
             statusText: L10n.Home.ScanStatus.local.localized,
             showsOverflow: !isSelectMode
         )
-        card.setSelectedStyle(selectedRoomIDs.contains(room.id))
+        card.setSelectedStyle(selectedCaptureIDs.contains(room.id))
 
         card.onTap = { [weak self] in
             guard let self else { return }
             if self.isSelectMode {
-                if self.selectedRoomIDs.contains(room.id) {
-                    self.selectedRoomIDs.remove(room.id)
+                if self.selectedCaptureIDs.contains(room.id) {
+                    self.selectedCaptureIDs.remove(room.id)
                 } else {
-                    self.selectedRoomIDs.insert(room.id)
+                    self.selectedCaptureIDs.insert(room.id)
                 }
                 self.updateSelectionToolbar()
-                self.renderRooms()
+                self.renderCaptures()
             } else {
                 self.openRoom(room)
             }
@@ -411,12 +498,12 @@ class SavedRoomsViewController: UIViewController {
 
     @objc private func toggleSelectMode() {
         isSelectMode.toggle()
-        selectedRoomIDs.removeAll()
+        selectedCaptureIDs.removeAll()
         selectionToolbar.isHidden = !isSelectMode
         selectionToolbarHeight?.constant = isSelectMode ? 44 : 0
         updateNavigationButtons()
         updateSelectionToolbar()
-        renderRooms()
+        renderCaptures()
     }
 
     @objc private func viewModeChanged() {
@@ -424,12 +511,12 @@ class SavedRoomsViewController: UIViewController {
         viewModeControl.accessibilityLabel = viewMode == .list
             ? L10n.SavedRooms.listView.localized
             : L10n.SavedRooms.gridView.localized
-        renderRooms()
+        renderCaptures()
     }
 
     @objc private func deleteSelectedRooms() {
-        guard !selectedRoomIDs.isEmpty else { return }
-        let count = selectedRoomIDs.count
+        guard !selectedCaptureIDs.isEmpty else { return }
+        let count = selectedCaptureIDs.count
         let alert = UIAlertController(
             title: L10n.SavedRooms.DeleteSelected.title.localized,
             message: L10n.SavedRooms.DeleteSelected.message.localized(count),
@@ -443,13 +530,34 @@ class SavedRoomsViewController: UIViewController {
     }
 
     private func performBatchDelete() {
-        let roomsToDelete = allRooms.filter { selectedRoomIDs.contains($0.id) }
-        for room in roomsToDelete {
-            try? RoomStorageManager.shared.deleteRoom(room)
+        let capturesToDelete = allCaptures.filter { selectedCaptureIDs.contains($0.id) }
+        var failedCaptureIDs = Set<UUID>()
+        var failures: [(name: String, error: Error)] = []
+
+        for capture in capturesToDelete {
+            do {
+                switch capture {
+                case .room(let room):
+                    try RoomStorageManager.shared.deleteRoom(room)
+                case .pointCloud(let pointCloud):
+                    try PointCloudStorageManager.shared.delete(pointCloud)
+                }
+            } catch {
+                failedCaptureIDs.insert(capture.id)
+                failures.append((capture.name, error))
+            }
         }
-        selectedRoomIDs.removeAll()
-        loadSavedRooms()
-        if allRooms.isEmpty && isSelectMode {
+
+        selectedCaptureIDs = failedCaptureIDs
+        loadLibraryItems()
+        if !failures.isEmpty {
+            updateSelectionToolbar()
+            let details = failures.map { "\($0.name): \($0.error.localizedDescription)" }.joined(separator: "\n")
+            showError(
+                "\(L10n.SavedRooms.deleteError.localized) "
+                    + "(\(failures.count)/\(capturesToDelete.count))\n\(details)"
+            )
+        } else if allCaptures.isEmpty && isSelectMode {
             toggleSelectMode()
         } else {
             updateSelectionToolbar()
@@ -457,7 +565,11 @@ class SavedRoomsViewController: UIViewController {
     }
 
     @objc private func exportSelectedRooms() {
-        let roomsToExport = allRooms.filter { selectedRoomIDs.contains($0.id) }
+        let roomsToExport = allCaptures.compactMap { item -> SavedRoom? in
+            guard selectedCaptureIDs.contains(item.id) else { return nil }
+            if case .room(let room) = item { return room }
+            return nil
+        }
         guard !roomsToExport.isEmpty else { return }
         do {
             let exportURL = try RoomStorageManager.shared.exportMultipleRooms(roomsToExport)
@@ -505,8 +617,15 @@ class SavedRoomsViewController: UIViewController {
         )
         alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
         alert.addAction(UIAlertAction(title: L10n.Common.delete.localized, style: .destructive) { [weak self] _ in
-            try? RoomStorageManager.shared.deleteRoom(room)
-            self?.loadSavedRooms()
+            guard let self else { return }
+            do {
+                try RoomStorageManager.shared.deleteRoom(room)
+                self.loadLibraryItems()
+            } catch {
+                self.showError(
+                    "\(L10n.SavedRooms.deleteError.localized): \(error.localizedDescription)"
+                )
+            }
         })
         present(alert, animated: true)
     }
@@ -531,13 +650,66 @@ class SavedRoomsViewController: UIViewController {
             if updatedRoom.notes?.isEmpty == true { updatedRoom.notes = nil }
             do {
                 try RoomStorageManager.shared.updateRoom(updatedRoom)
-                self.loadSavedRooms()
+                self.loadLibraryItems()
             } catch {
                 self.showError("Failed to update room: \(error.localizedDescription)")
             }
         })
         alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
         present(alert, animated: true)
+    }
+
+    private func openPointCloud(_ pointCloud: SavedPointCloud) {
+        let controller = PointCloudViewerViewController(capture: pointCloud)
+        let navController = UINavigationController(rootViewController: controller)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: true)
+        navController.modalPresentationStyle = .fullScreen
+        present(navController, animated: true)
+    }
+
+    private func showPointCloudMenu(for pointCloud: SavedPointCloud) {
+        let alert = UIAlertController(title: pointCloud.name, message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "View Point Cloud", style: .default) { [weak self] _ in
+            self?.openPointCloud(pointCloud)
+        })
+        alert.addAction(UIAlertAction(title: "Share PCD", style: .default) { [weak self] _ in
+            self?.sharePointCloud(pointCloud)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.delete.localized, style: .destructive) { [weak self] _ in
+            self?.confirmDeletePointCloud(pointCloud)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+        }
+        present(alert, animated: true)
+    }
+
+    private func confirmDeletePointCloud(_ pointCloud: SavedPointCloud) {
+        let alert = UIAlertController(
+            title: L10n.SavedRooms.DeleteConfirm.title.localized,
+            message: L10n.SavedRooms.DeleteConfirm.message.localized(pointCloud.name),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.delete.localized, style: .destructive) { [weak self] _ in
+            guard let self else { return }
+            do {
+                try PointCloudStorageManager.shared.delete(pointCloud)
+                self.loadLibraryItems()
+            } catch {
+                self.showError(
+                    "\(L10n.SavedRooms.deleteError.localized): \(error.localizedDescription)"
+                )
+            }
+        })
+        present(alert, animated: true)
+    }
+
+    private func sharePointCloud(_ pointCloud: SavedPointCloud) {
+        guard let url = try? PointCloudStorageManager.shared.fileURL(for: pointCloud) else { return }
+        shareItems([url])
     }
 
     private func showExportOptions(for room: SavedRoom) {

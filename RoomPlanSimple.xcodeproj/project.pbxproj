@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		210E2D042EE7570C004EBBD5 /* WiFiOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 210E2D032EE7570C004EBBD5 /* WiFiOverlayView.swift */; };
-		210E2D052EE7570C004EBBD5 /* RFPropagationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 210E2D022EE7570C004EBBD5 /* RFPropagationModel.swift */; };
 		213F69B22A128836000BE6B0 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 213F69B02A128836000BE6B0 /* LaunchScreen.storyboard */; };
 		71B6638528D0CABC00635A15 /* UnsupportedDevice.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 71B6638328D0CABC00635A15 /* UnsupportedDevice.storyboard */; };
 		ACEF94B12820AD2300776A9D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEF94B02820AD2300776A9D /* AppDelegate.swift */; };
@@ -28,7 +26,6 @@
 		CC000001DEADBEEF00000009 /* RoomStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000009 /* RoomStorageManager.swift */; };
 		CC000001DEADBEEF0000000A /* SavedRoomsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF0000000A /* SavedRoomsViewController.swift */; };
 		CC000001DEADBEEF0000000B /* PhotoCaptureManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF0000000B /* PhotoCaptureManager.swift */; };
-		CC000001DEADBEEF0000000C /* WiFiSignalManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF0000000C /* WiFiSignalManager.swift */; };
 		CC000001DEADBEEF0000000D /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF0000000D /* AppSettings.swift */; };
 		CC000001DEADBEEF0000000E /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF0000000E /* SettingsViewController.swift */; };
 		CC000001DEADBEEF0000000F /* FloorPlanExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF0000000F /* FloorPlanExporter.swift */; };
@@ -53,6 +50,9 @@
 		CC000001DEADBEEF00000047 /* PointCloudFileLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000047 /* PointCloudFileLoader.swift */; };
 		CC000001DEADBEEF00000048 /* PointCloudViewerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000048 /* PointCloudViewerViewController.swift */; };
 		CC000001DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift */; };
+		CC000001DEADBEEF00000050 /* RoomSceneBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000050 /* RoomSceneBuilder.swift */; };
+		CC000001DEADBEEF00000052 /* LibraryCaptureItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000052 /* LibraryCaptureItem.swift */; };
+		CC000001DEADBEEF00000051 /* FurnitureAssets in Resources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000051 /* FurnitureAssets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,8 +74,6 @@
 
 /* Begin PBXFileReference section */
 		05C7567A6B268FC70FFB0FCC /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		210E2D022EE7570C004EBBD5 /* RFPropagationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFPropagationModel.swift; sourceTree = "<group>"; };
-		210E2D032EE7570C004EBBD5 /* WiFiOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiOverlayView.swift; sourceTree = "<group>"; };
 		213F69B12A128836000BE6B0 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		21618BD02EE30B690023823F /* RoomPlanSimple.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RoomPlanSimple.entitlements; sourceTree = "<group>"; };
 		21B841932EE1FF7B00502C5E /* RoomPlanSimpleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RoomPlanSimpleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -101,7 +99,6 @@
 		CC000002DEADBEEF00000009 /* RoomStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomStorageManager.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF0000000A /* SavedRoomsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedRoomsViewController.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF0000000B /* PhotoCaptureManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoCaptureManager.swift; sourceTree = "<group>"; };
-		CC000002DEADBEEF0000000C /* WiFiSignalManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiSignalManager.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF0000000D /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF0000000E /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF0000000F /* FloorPlanExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloorPlanExporter.swift; sourceTree = "<group>"; };
@@ -138,6 +135,9 @@
 		CC000002DEADBEEF00000047 /* PointCloudFileLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudFileLoader.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000048 /* PointCloudViewerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudViewerViewController.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloorPlanDocumentRenderer.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000052 /* LibraryCaptureItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryCaptureItem.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000050 /* RoomSceneBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomSceneBuilder.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000051 /* FurnitureAssets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = FurnitureAssets; sourceTree = "<group>"; };
 		CD4891E2C9F3F7012DE25B49 /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -207,8 +207,6 @@
 		ACEF94AF2820AD2300776A9D /* RoomPlanSimple */ = {
 			isa = PBXGroup;
 			children = (
-				210E2D022EE7570C004EBBD5 /* RFPropagationModel.swift */,
-				210E2D032EE7570C004EBBD5 /* WiFiOverlayView.swift */,
 				21618BD02EE30B690023823F /* RoomPlanSimple.entitlements */,
 				ACEF94B02820AD2300776A9D /* AppDelegate.swift */,
 				ACEF94B22820AD2300776A9D /* SceneDelegate.swift */,
@@ -230,6 +228,9 @@
 				CC000002DEADBEEF00000047 /* PointCloudFileLoader.swift */,
 				CC000002DEADBEEF00000048 /* PointCloudViewerViewController.swift */,
 				CC000002DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift */,
+				CC000002DEADBEEF00000052 /* LibraryCaptureItem.swift */,
+				CC000002DEADBEEF00000050 /* RoomSceneBuilder.swift */,
+				CC000002DEADBEEF00000051 /* FurnitureAssets */,
 				CC000002DEADBEEF00000013 /* RoomViewerViewController.swift */,
 				CC000002DEADBEEF00000005 /* FloorPlanView.swift */,
 				CC000002DEADBEEF00000006 /* FloorPlanViewController.swift */,
@@ -239,7 +240,6 @@
 				CC000002DEADBEEF00000023 /* RoomTypeDetector.swift */,
 				CC000002DEADBEEF0000000A /* SavedRoomsViewController.swift */,
 				CC000002DEADBEEF0000000B /* PhotoCaptureManager.swift */,
-				CC000002DEADBEEF0000000C /* WiFiSignalManager.swift */,
 				CC000002DEADBEEF0000000D /* AppSettings.swift */,
 				CC000002DEADBEEF0000000E /* SettingsViewController.swift */,
 				CC000002DEADBEEF0000000F /* FloorPlanExporter.swift */,
@@ -407,6 +407,7 @@
 				ACEF94B82820AD2300776A9D /* Main.storyboard in Resources */,
 				CC000001DEADBEEF00000015 /* Localizable.strings in Resources */,
 				CC000001DEADBEEF00000016 /* InfoPlist.strings in Resources */,
+				CC000001DEADBEEF00000051 /* FurnitureAssets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -446,20 +447,19 @@
 				CC000001DEADBEEF00000047 /* PointCloudFileLoader.swift in Sources */,
 				CC000001DEADBEEF00000048 /* PointCloudViewerViewController.swift in Sources */,
 				CC000001DEADBEEF00000049 /* FloorPlanDocumentRenderer.swift in Sources */,
+				CC000001DEADBEEF00000052 /* LibraryCaptureItem.swift in Sources */,
+				CC000001DEADBEEF00000050 /* RoomSceneBuilder.swift in Sources */,
 				CC000001DEADBEEF00000002 /* HapticFeedbackManager.swift in Sources */,
 				CC000001DEADBEEF00000003 /* ScanStatistics.swift in Sources */,
 				CC000001DEADBEEF00000004 /* RoomCaptureError.swift in Sources */,
 				CC000001DEADBEEF00000005 /* FloorPlanView.swift in Sources */,
 				CC000001DEADBEEF00000006 /* FloorPlanViewController.swift in Sources */,
-				210E2D042EE7570C004EBBD5 /* WiFiOverlayView.swift in Sources */,
-				210E2D052EE7570C004EBBD5 /* RFPropagationModel.swift in Sources */,
 				CC000001DEADBEEF00000007 /* RoomExportManager.swift in Sources */,
 				CC000001DEADBEEF00000008 /* MemoryMonitor.swift in Sources */,
 				CC000001DEADBEEF00000009 /* RoomStorageManager.swift in Sources */,
 				CC000001DEADBEEF00000023 /* RoomTypeDetector.swift in Sources */,
 				CC000001DEADBEEF0000000A /* SavedRoomsViewController.swift in Sources */,
 				CC000001DEADBEEF0000000B /* PhotoCaptureManager.swift in Sources */,
-				CC000001DEADBEEF0000000C /* WiFiSignalManager.swift in Sources */,
 				CC000001DEADBEEF0000000D /* AppSettings.swift in Sources */,
 				CC000001DEADBEEF0000000E /* SettingsViewController.swift in Sources */,
 				CC000001DEADBEEF0000000F /* FloorPlanExporter.swift in Sources */,

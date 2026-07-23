@@ -19,7 +19,6 @@ final class AppSettings {
 
     private enum Keys {
         static let autoSaveScans = "autoSaveScans"
-        static let defaultWifiTracking = "defaultWifiTracking"
         static let defaultExportFormat = "defaultExportFormat"
         static let showPhotosInFloorPlan = "showPhotosInFloorPlan"
         static let iCloudSyncEnabled = "iCloudSyncEnabled"
@@ -38,15 +37,6 @@ final class AppSettings {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: Keys.autoSaveScans)
-            NotificationCenter.default.post(name: .settingsDidChange, object: nil)
-        }
-    }
-
-    /// Enable WiFi tracking by default when starting a scan
-    var defaultWifiTracking: Bool {
-        get { UserDefaults.standard.bool(forKey: Keys.defaultWifiTracking) }
-        set {
-            UserDefaults.standard.set(newValue, forKey: Keys.defaultWifiTracking)
             NotificationCenter.default.post(name: .settingsDidChange, object: nil)
         }
     }
@@ -190,7 +180,6 @@ final class AppSettings {
     /// Reset all settings to defaults
     func resetToDefaults() {
         autoSaveScans = true
-        defaultWifiTracking = false
         defaultExportFormat = "parametric"
         showPhotosInFloorPlan = false
         iCloudSyncEnabled = false

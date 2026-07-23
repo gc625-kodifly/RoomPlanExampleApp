@@ -38,6 +38,20 @@ final class RoomPlanSimpleUITests: XCTestCase {
     }
 
     @MainActor
+    func testNewScanChooserExplainsOutputsAndHardwareState() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let newScan = app.buttons["home.newScan"]
+        XCTAssertTrue(newScan.waitForExistence(timeout: 5))
+        newScan.tap()
+
+        XCTAssertTrue(app.buttons["newScan.roomModel"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["newScan.pointCloud"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.sheets.firstMatch.exists || app.alerts.firstMatch.exists)
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()

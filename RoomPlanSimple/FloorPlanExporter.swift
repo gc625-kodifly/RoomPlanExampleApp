@@ -36,7 +36,7 @@ final class FloorPlanExporter {
     // MARK: - SVG Export
 
     /// Export floor plan data to SVG format
-    static func exportToSVG(data: FloorPlanData, wifiSamples: [WiFiSample] = [], includeDimensions: Bool = true) -> String {
+    static func exportToSVG(data: FloorPlanData, includeDimensions: Bool = true) -> String {
         let padding: CGFloat = 90
         let headerHeight: CGFloat = 80
         let footerHeight: CGFloat = 60
@@ -211,38 +211,6 @@ final class FloorPlanExporter {
             """
         }
 
-        // WiFi sample points
-        if !wifiSamples.isEmpty {
-            svg += """
-                <!-- WiFi Samples -->
-
-            """
-
-            for sample in wifiSamples {
-                let x = tx(CGFloat(sample.position.x))
-                let y = ty(CGFloat(sample.position.z)) // Use z for 2D floor plan
-                let signalStrength = sample.rssi
-
-                // Color based on signal strength (-30 to -90 dBm)
-                let normalizedSignal = (Double(signalStrength) + 90) / 60.0 // 0 (poor) to 1 (excellent)
-                let color: String
-                if normalizedSignal > 0.75 {
-                    color = "#00FF00" // Green (excellent)
-                } else if normalizedSignal > 0.5 {
-                    color = "#90EE90" // Light green (good)
-                } else if normalizedSignal > 0.25 {
-                    color = "#FFD700" // Gold (fair)
-                } else {
-                    color = "#FF6347" // Tomato (poor)
-                }
-
-                svg += """
-                    <circle cx="\(x)" cy="\(y)" r="3" fill="\(color)" stroke="#333" stroke-width="0.5" opacity="0.7"/>
-
-                """
-            }
-        }
-
         svg += """
         </g>
         <line x1="35" y1="\(height - 34)" x2="\(35 + scale)" y2="\(height - 34)" stroke="#111111" stroke-width="3"/>
@@ -262,7 +230,7 @@ final class FloorPlanExporter {
     // MARK: - DXF Export
 
     /// Export floor plan data to DXF format (AutoCAD compatible)
-    static func exportToDXF(data: FloorPlanData, wifiSamples: [WiFiSample] = [], includeDimensions: Bool = true) -> String {
+    static func exportToDXF(data: FloorPlanData, includeDimensions: Bool = true) -> String {
         let scale: Float = 1.0  // 1 unit = 1 meter
 
         var dxf = """
@@ -472,44 +440,6 @@ final class FloorPlanExporter {
             \(roomDepth)
 
             """
-        }
-
-        // WiFi sample points as CIRCLE entities
-        if !wifiSamples.isEmpty {
-            for sample in wifiSamples {
-                let x = tx(CGFloat(sample.position.x))
-                let y = ty(CGFloat(sample.position.z)) // Use z for 2D floor plan
-                let signalStrength = sample.rssi
-
-                // Determine color based on signal strength
-                let colorNumber: Int
-                let normalizedSignal = (Double(signalStrength) + 90) / 60.0 // 0 (poor) to 1 (excellent)
-                if normalizedSignal > 0.75 {
-                    colorNumber = 3 // Green (excellent)
-                } else if normalizedSignal > 0.5 {
-                    colorNumber = 4 // Cyan (good)
-                } else if normalizedSignal > 0.25 {
-                    colorNumber = 2 // Yellow (fair)
-                } else {
-                    colorNumber = 1 // Red (poor)
-                }
-
-                dxf += """
-                0
-                CIRCLE
-                8
-                WIFI
-                62
-                \(colorNumber)
-                10
-                \(x)
-                20
-                \(y)
-                40
-                0.1
-
-                """
-            }
         }
 
         dxf += """

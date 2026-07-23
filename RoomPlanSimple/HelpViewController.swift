@@ -75,10 +75,10 @@ class HelpViewController: UITableViewController {
         case .gettingStarted: return 1
         case .icloudSetup: return 1
         case .scanning: return 1
-        case .features: return 5
+        case .features: return 4
         case .export: return 1
         case .tips: return 5
-        case .troubleshooting: return 4
+        case .troubleshooting: return 3
         }
     }
 
@@ -146,7 +146,6 @@ class HelpViewController: UITableViewController {
 
         let features = [
             ("cube.transparent.fill", L10n.Help.feature3DTitle.localized, L10n.Help.feature3DDesc.localized),
-            ("wifi", L10n.Help.featureWiFiTitle.localized, L10n.Help.featureWiFiDesc.localized),
             ("camera.fill", L10n.Help.featurePhotoTitle.localized, L10n.Help.featurePhotoDesc.localized),
             ("square.and.arrow.up", L10n.Help.featureExportTitle.localized, L10n.Help.featureExportDesc.localized),
             ("icloud.fill", L10n.Help.featureICloudTitle.localized, L10n.Help.featureICloudDesc.localized)
@@ -189,8 +188,7 @@ class HelpViewController: UITableViewController {
         let issues = [
             ("exclamationmark.triangle.fill", L10n.Help.troubleNotStartingTitle.localized, L10n.Help.troubleNotStartingDesc.localized),
             ("camera.metering.partial", L10n.Help.troublePoorQualityTitle.localized, L10n.Help.troublePoorQualityDesc.localized),
-            ("internaldrive.fill", L10n.Help.troubleDisappearedTitle.localized, L10n.Help.troubleDisappearedDesc.localized),
-            ("wifi.slash", L10n.Help.troubleWiFiTitle.localized, L10n.Help.troubleWiFiDesc.localized)
+            ("internaldrive.fill", L10n.Help.troubleDisappearedTitle.localized, L10n.Help.troubleDisappearedDesc.localized)
         ]
 
         let issue = issues[indexPath.row]

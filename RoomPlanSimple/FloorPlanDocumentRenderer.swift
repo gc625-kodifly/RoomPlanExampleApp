@@ -10,7 +10,6 @@ import UIKit
 struct FloorPlanRenderOptions {
     var showDimensions = true
     var showLabels = true
-    var showWiFi = false
     var title = "SpatialSense Floor Plan"
 }
 
@@ -40,7 +39,6 @@ enum FloorPlanDocumentRenderer {
     static func image(
         data: FloorPlanData,
         size: CGSize,
-        wifiSamples: [WiFiSample] = [],
         options: FloorPlanRenderOptions = FloorPlanRenderOptions()
     ) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
@@ -49,7 +47,6 @@ enum FloorPlanDocumentRenderer {
         return UIGraphicsImageRenderer(size: size, format: format).image { rendererContext in
             draw(
                 data: data,
-                wifiSamples: wifiSamples,
                 in: CGRect(origin: .zero, size: size),
                 context: rendererContext.cgContext,
                 options: options
@@ -59,7 +56,6 @@ enum FloorPlanDocumentRenderer {
 
     static func draw(
         data: FloorPlanData,
-        wifiSamples: [WiFiSample] = [],
         in bounds: CGRect,
         context: CGContext,
         options: FloorPlanRenderOptions
@@ -73,9 +69,6 @@ enum FloorPlanDocumentRenderer {
 
         let layout = makeLayout(data: data, bounds: bounds)
         drawRoomFill(data: data, layout: layout, context: context)
-        if options.showWiFi {
-            drawWiFi(wifiSamples, layout: layout, context: context)
-        }
 
         let walls = elements(data, matching: .wall)
         let openings = elements(data, matching: .opening)
@@ -454,28 +447,6 @@ enum FloorPlanDocumentRenderer {
                 .foregroundColor: UIColor.black
             ]
         )
-    }
-
-    private static func drawWiFi(
-        _ samples: [WiFiSample],
-        layout: Layout,
-        context: CGContext
-    ) {
-        for sample in samples {
-            let point = layout.point(CGPoint(
-                x: CGFloat(sample.position.x),
-                y: CGFloat(sample.position.z)
-            ))
-            let color: UIColor
-            switch sample.rssi {
-            case -50...0: color = .systemGreen
-            case -60..<(-50): color = .systemYellow
-            case -70..<(-60): color = .systemOrange
-            default: color = .systemRed
-            }
-            context.setFillColor(color.withAlphaComponent(0.28).cgColor)
-            context.fillEllipse(in: CGRect(x: point.x - 12, y: point.y - 12, width: 24, height: 24))
-        }
     }
 
     private static func withElementTransform(

@@ -18,24 +18,21 @@ class RoomViewerViewController: UIViewController {
         case floorPlan
         case model3D
         case photos
-        case wifiHeatmap
     }
 
     // MARK: - Properties
 
     private let savedRoom: SavedRoom
-    private var wifiSamples: [WiFiSample] = []
     private var currentMode: ViewMode = .floorPlan
     private var floorPlanImage: UIImage?
 
     // UI Components
-    private let segmentedControl = UISegmentedControl(items: [
-        L10n.Viewer.Mode.floorPlan.localized,
-        L10n.Viewer.Mode.model3D.localized,
-        L10n.Viewer.Mode.photos.localized,
-        L10n.Viewer.Mode.wifi.localized
-    ])
+    private let modeScrollView = UIScrollView()
+    private let modeStack = UIStackView()
+    private var modeButtons: [UIButton] = []
+    private var selectedModeIndex = 0
     private let containerView = UIView()
+    private weak var modelSceneView: SCNView?
 
 
     // MARK: - Initialization
@@ -55,6 +52,13 @@ class RoomViewerViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         loadRoomData()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        if let modelSceneView {
+            fitCamera(in: modelSceneView)
+        }
     }
 
     // MARK: - Setup
@@ -90,19 +94,16 @@ class RoomViewerViewController: UIViewController {
         segmentContainer.layer.borderColor = UIColor.white.withAlphaComponent(0.08).cgColor
         view.addSubview(segmentContainer)
 
-        segmentedControl.selectedSegmentIndex = 0
-        segmentedControl.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
-        segmentedControl.translatesAutoresizingMaskIntoConstraints = false
-        segmentedControl.selectedSegmentTintColor = SpatialSenseTheme.Color.primary
-        segmentedControl.setTitleTextAttributes([
-            .foregroundColor: SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7),
-            .font: SpatialSenseTheme.Font.medium(12)
-        ], for: .normal)
-        segmentedControl.setTitleTextAttributes([
-            .foregroundColor: SpatialSenseTheme.Color.textOnInverse,
-            .font: SpatialSenseTheme.Font.semibold(12)
-        ], for: .selected)
-        segmentContainer.addSubview(segmentedControl)
+        modeScrollView.translatesAutoresizingMaskIntoConstraints = false
+        modeScrollView.showsHorizontalScrollIndicator = false
+        modeScrollView.alwaysBounceHorizontal = true
+        segmentContainer.addSubview(modeScrollView)
+
+        modeStack.translatesAutoresizingMaskIntoConstraints = false
+        modeStack.axis = .horizontal
+        modeStack.spacing = SpatialSenseTheme.Space.sm
+        modeScrollView.addSubview(modeStack)
+        configureModeButtons()
 
         // Container view
         containerView.translatesAutoresizingMaskIntoConstraints = false
@@ -115,10 +116,17 @@ class RoomViewerViewController: UIViewController {
             segmentContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: SpatialSenseTheme.Space.md),
             segmentContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -SpatialSenseTheme.Space.md),
 
-            segmentedControl.topAnchor.constraint(equalTo: segmentContainer.topAnchor, constant: SpatialSenseTheme.Space.sm),
-            segmentedControl.leadingAnchor.constraint(equalTo: segmentContainer.leadingAnchor, constant: SpatialSenseTheme.Space.sm),
-            segmentedControl.trailingAnchor.constraint(equalTo: segmentContainer.trailingAnchor, constant: -SpatialSenseTheme.Space.sm),
-            segmentedControl.bottomAnchor.constraint(equalTo: segmentContainer.bottomAnchor, constant: -SpatialSenseTheme.Space.sm),
+            modeScrollView.topAnchor.constraint(equalTo: segmentContainer.topAnchor, constant: SpatialSenseTheme.Space.sm),
+            modeScrollView.leadingAnchor.constraint(equalTo: segmentContainer.leadingAnchor, constant: SpatialSenseTheme.Space.sm),
+            modeScrollView.trailingAnchor.constraint(equalTo: segmentContainer.trailingAnchor, constant: -SpatialSenseTheme.Space.sm),
+            modeScrollView.bottomAnchor.constraint(equalTo: segmentContainer.bottomAnchor, constant: -SpatialSenseTheme.Space.sm),
+            modeScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
+
+            modeStack.topAnchor.constraint(equalTo: modeScrollView.contentLayoutGuide.topAnchor),
+            modeStack.leadingAnchor.constraint(equalTo: modeScrollView.contentLayoutGuide.leadingAnchor),
+            modeStack.trailingAnchor.constraint(equalTo: modeScrollView.contentLayoutGuide.trailingAnchor),
+            modeStack.bottomAnchor.constraint(equalTo: modeScrollView.contentLayoutGuide.bottomAnchor),
+            modeStack.heightAnchor.constraint(equalTo: modeScrollView.frameLayoutGuide.heightAnchor),
 
             containerView.topAnchor.constraint(equalTo: view.topAnchor),
             containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -127,24 +135,71 @@ class RoomViewerViewController: UIViewController {
         ])
     }
 
+    private func configureModeButtons() {
+        let modes = [
+            (L10n.Viewer.Mode.floorPlan.localized, "square.split.bottomrightquarter"),
+            (L10n.Viewer.Mode.model3D.localized, "cube"),
+            (L10n.Viewer.Mode.photos.localized, "photo.on.rectangle")
+        ]
+
+        modeButtons = modes.enumerated().map { index, mode in
+            var configuration = UIButton.Configuration.gray()
+            configuration.title = mode.0
+            configuration.image = UIImage(systemName: mode.1)
+            configuration.imagePadding = 6
+            configuration.cornerStyle = .capsule
+            configuration.contentInsets = NSDirectionalEdgeInsets(
+                top: 8,
+                leading: 12,
+                bottom: 8,
+                trailing: 12
+            )
+            configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+                var outgoing = incoming
+                outgoing.font = SpatialSenseTheme.Font.caption
+                return outgoing
+            }
+            let button = UIButton(configuration: configuration)
+            button.tag = index
+            button.accessibilityLabel = mode.0
+            button.addTarget(self, action: #selector(modeButtonTapped(_:)), for: .touchUpInside)
+            button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+            modeStack.addArrangedSubview(button)
+            return button
+        }
+        updateModeButtonStyles()
+    }
+
+    private func updateModeButtonStyles() {
+        for (index, button) in modeButtons.enumerated() {
+            let selected = index == selectedModeIndex
+            button.configuration?.baseBackgroundColor = selected
+                ? SpatialSenseTheme.Color.primary
+                : SpatialSenseTheme.Color.studioSurfaceRaised
+            button.configuration?.baseForegroundColor = selected
+                ? .white
+                : UIColor.white.withAlphaComponent(0.72)
+            button.accessibilityTraits = selected ? [.button, .selected] : .button
+        }
+    }
+
     private func loadRoomData() {
-        // Load WiFi samples if available
-        self.wifiSamples = RoomStorageManager.shared.loadWiFiSamples(for: savedRoom)
-
-        // Load floor plan image
         self.floorPlanImage = RoomStorageManager.shared.getFloorPlanImage(for: savedRoom)
-
-        // Show floor plan by default
         showFloorPlan()
     }
 
     // MARK: - Mode Switching
 
-    @objc private func modeChanged() {
+    @objc private func modeButtonTapped(_ sender: UIButton) {
+        selectedModeIndex = sender.tag
+        updateModeButtonStyles()
+        modeScrollView.scrollRectToVisible(sender.frame.insetBy(dx: -16, dy: 0), animated: true)
+
         // Remove current view
+        modelSceneView = nil
         children.forEach { $0.removeFromParent(); $0.view.removeFromSuperview() }
 
-        switch segmentedControl.selectedSegmentIndex {
+        switch selectedModeIndex {
         case 0:
             currentMode = .floorPlan
             showFloorPlan()
@@ -154,52 +209,38 @@ class RoomViewerViewController: UIViewController {
         case 2:
             currentMode = .photos
             showPhotos()
-        case 3:
-            currentMode = .wifiHeatmap
-            showWiFiHeatmap()
         default:
             break
         }
     }
 
     private func showFloorPlan() {
-        guard let image = floorPlanImage else {
+        guard let floorPlanData = RoomStorageManager.shared.loadFloorPlanData(for: savedRoom) else {
             showMessage(L10n.Viewer.noFloorPlan.localized)
             return
         }
 
-        // Create an interactive image view with pinch/pan gestures
-        let scrollView = UIScrollView(frame: containerView.bounds)
-        scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        scrollView.minimumZoomScale = 0.5
-        scrollView.maximumZoomScale = 4.0
-        scrollView.delegate = self
-        scrollView.showsVerticalScrollIndicator = true
-        scrollView.showsHorizontalScrollIndicator = true
+        let floorPlanView = FloorPlanView(frame: containerView.bounds)
+        floorPlanView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        floorPlanView.configure(with: floorPlanData)
+        floorPlanView.backgroundColor = FloorPlanConfig.backgroundColor
+        containerView.addSubview(floorPlanView)
 
-        let imageView = UIImageView(image: image)
-        imageView.contentMode = .scaleAspectFit
-        imageView.frame = scrollView.bounds
-        imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        imageView.tag = 100 // Tag for zoom reference
-
-        scrollView.addSubview(imageView)
-        containerView.addSubview(scrollView)
-
-        // Add pinch gesture hint
         let hintLabel = UILabel()
         hintLabel.text = L10n.Viewer.floorPlanHint.localized
         hintLabel.font = SpatialSenseTheme.Font.caption
+        hintLabel.adjustsFontForContentSizeCategory = true
+        hintLabel.numberOfLines = 0
         hintLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7)
         hintLabel.textAlignment = .center
         hintLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(hintLabel)
+        floorPlanView.addSubview(hintLabel)
 
         NSLayoutConstraint.activate([
-            hintLabel.bottomAnchor.constraint(equalTo: scrollView.safeAreaLayoutGuide.bottomAnchor, constant: -16),
-            hintLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-            hintLabel.widthAnchor.constraint(lessThanOrEqualTo: scrollView.widthAnchor, constant: -32)
+            hintLabel.bottomAnchor.constraint(equalTo: floorPlanView.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            hintLabel.centerXAnchor.constraint(equalTo: floorPlanView.centerXAnchor),
+            hintLabel.widthAnchor.constraint(lessThanOrEqualTo: floorPlanView.widthAnchor, constant: -32)
         ])
     }
 
@@ -209,22 +250,33 @@ class RoomViewerViewController: UIViewController {
         sceneView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         sceneView.backgroundColor = SpatialSenseTheme.Color.immersive
         sceneView.allowsCameraControl = true
-        sceneView.autoenablesDefaultLighting = true
         sceneView.antialiasingMode = .multisampling4X
+        sceneView.preferredFramesPerSecond = 60
+        sceneView.rendersContinuously = false
 
-        // Create a scene from the room (convert USDZ)
+        // New saves use exact object bounds with offline, bundled Kenney assets.
+        // Older saves remain viewable through the original RoomPlan USDZ.
+        let floorPlanData = RoomStorageManager.shared.loadFloorPlanData(for: savedRoom)
+        let measuredScene = floorPlanData.flatMap { data in
+            RoomSceneBuilder.canBuildScene(from: data) ? RoomSceneBuilder.makeScene(from: data) : nil
+        }
         let usdzURL = RoomStorageManager.shared.getUsdzURL(for: savedRoom)
-        if let scene = try? SCNScene(url: usdzURL, options: nil) {
-            sceneView.scene = scene
+        let scene = measuredScene ?? (try? SCNScene(url: usdzURL, options: nil))
+        sceneView.autoenablesDefaultLighting = measuredScene == nil
 
-            // Add a camera if none exists
-            if scene.rootNode.childNodes(passingTest: { node, _ in node.camera != nil }).isEmpty {
-                let cameraNode = SCNNode()
-                cameraNode.camera = SCNCamera()
-                cameraNode.position = SCNVector3(x: 0, y: 2, z: 5)
-                cameraNode.look(at: SCNVector3(x: 0, y: 0, z: 0))
-                scene.rootNode.addChildNode(cameraNode)
+        if let scene {
+            sceneView.scene = scene
+            modelSceneView = sceneView
+
+            // Use one app-owned fitted camera so viewport changes can be handled consistently.
+            if scene.rootNode.childNode(withName: "Camera", recursively: false) == nil {
+                addFittedCamera(to: scene)
             }
+            sceneView.pointOfView = scene.rootNode.childNode(withName: "Camera", recursively: false)
+            fitCamera(in: sceneView)
+        } else {
+            showMessage(L10n.Viewer.no3DModel.localized)
+            return
         }
 
         let vc = UIViewController()
@@ -238,6 +290,8 @@ class RoomViewerViewController: UIViewController {
         let instructionsLabel = UILabel()
         instructionsLabel.text = L10n.Viewer.model3DHint.localized
         instructionsLabel.font = SpatialSenseTheme.Font.caption
+        instructionsLabel.adjustsFontForContentSizeCategory = true
+        instructionsLabel.numberOfLines = 0
         instructionsLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.75)
         instructionsLabel.textAlignment = .center
         instructionsLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
@@ -292,55 +346,6 @@ class RoomViewerViewController: UIViewController {
         vc.view.frame = containerView.bounds
         vc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         vc.didMove(toParent: self)
-    }
-
-    private func showWiFiHeatmap() {
-        if wifiSamples.isEmpty {
-            showMessage(L10n.Viewer.noWifiData.localized)
-            return
-        }
-
-        // Load floor plan data to display WiFi heatmap
-        guard let floorPlanData = RoomStorageManager.shared.loadFloorPlanData(for: savedRoom) else {
-            showMessage(L10n.Viewer.noFloorPlan.localized)
-            return
-        }
-
-        // Create FloorPlanView with WiFi samples
-        let floorPlanView = FloorPlanView(frame: containerView.bounds)
-        floorPlanView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        floorPlanView.configure(with: floorPlanData, wifiSamples: wifiSamples)
-        floorPlanView.showWifiHeatmap = true
-        floorPlanView.backgroundColor = FloorPlanConfig.backgroundColor
-
-        // Wrap in scroll view for zooming
-        let scrollView = UIScrollView(frame: containerView.bounds)
-        scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        scrollView.minimumZoomScale = 0.5
-        scrollView.maximumZoomScale = 4.0
-        scrollView.delegate = self
-        scrollView.showsVerticalScrollIndicator = true
-        scrollView.showsHorizontalScrollIndicator = true
-
-        floorPlanView.tag = 100 // Tag for zoom reference
-        scrollView.addSubview(floorPlanView)
-        containerView.addSubview(scrollView)
-
-        // Add hint label
-        let hintLabel = UILabel()
-        hintLabel.text = L10n.Viewer.wifiSamplesCount.localized(wifiSamples.count)
-        hintLabel.font = SpatialSenseTheme.Font.caption
-        hintLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7)
-        hintLabel.textAlignment = .center
-        hintLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
-        hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(hintLabel)
-
-        NSLayoutConstraint.activate([
-            hintLabel.bottomAnchor.constraint(equalTo: scrollView.safeAreaLayoutGuide.bottomAnchor, constant: -16),
-            hintLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-            hintLabel.widthAnchor.constraint(lessThanOrEqualTo: scrollView.widthAnchor, constant: -32)
-        ])
     }
 
     private func showMessage(_ message: String) {
@@ -425,23 +430,19 @@ class RoomViewerViewController: UIViewController {
     }
 
     private func shareOBJ() {
-        // TODO: Implementation for sharing OBJ format
-        showMessage(L10n.Export.error.localized)
+        exportAndShare { try RoomStorageManager.shared.exportToOBJ(for: self.savedRoom) }
     }
 
     private func shareSTL() {
-        // TODO: Implementation for sharing STL format
-        showMessage(L10n.Export.error.localized)
+        exportAndShare { try RoomStorageManager.shared.exportToSTL(for: self.savedRoom) }
     }
 
     private func shareFloorPlanDXF() {
-        // TODO: Implementation for sharing floor plan DXF
-        showMessage(L10n.Export.error.localized)
+        exportAndShare { try RoomStorageManager.shared.exportToDXF(for: self.savedRoom) }
     }
 
     private func shareFloorPlanSVG() {
-        // TODO: Implementation for sharing floor plan SVG
-        showMessage(L10n.Export.error.localized)
+        exportAndShare { try RoomStorageManager.shared.exportToSVG(for: self.savedRoom) }
     }
 
     private func shareFloorPlanPNG() {
@@ -477,6 +478,78 @@ class RoomViewerViewController: UIViewController {
             showMessage(L10n.Export.error.localized)
             print("Complete export failed: \(error)")
         }
+    }
+
+    private func exportAndShare(_ export: () throws -> URL) {
+        do {
+            let url = try export()
+            let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            activityVC.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItem
+            present(activityVC, animated: true)
+        } catch {
+            showMessage(L10n.Export.error.localized)
+        }
+    }
+
+    private func addFittedCamera(to scene: SCNScene) {
+        let camera = SCNCamera()
+        camera.fieldOfView = 48
+        camera.zNear = 0.02
+        let target = SCNNode()
+        target.name = "Camera target"
+        scene.rootNode.addChildNode(target)
+        let cameraNode = SCNNode()
+        cameraNode.name = "Camera"
+        cameraNode.camera = camera
+        let lookAt = SCNLookAtConstraint(target: target)
+        lookAt.isGimbalLockEnabled = true
+        cameraNode.constraints = [lookAt]
+        scene.rootNode.addChildNode(cameraNode)
+    }
+
+    private func fitCamera(in sceneView: SCNView) {
+        guard
+            let scene = sceneView.scene,
+            sceneView.bounds.width > 0,
+            sceneView.bounds.height > 0
+        else {
+            return
+        }
+        if scene.rootNode.childNode(withName: "Measured room", recursively: false) != nil {
+            RoomSceneBuilder.refitCamera(in: scene, viewportSize: sceneView.bounds.size)
+            return
+        }
+        guard
+            let cameraNode = scene.rootNode.childNode(withName: "Camera", recursively: false),
+            let camera = cameraNode.camera,
+            let target = scene.rootNode.childNode(withName: "Camera target", recursively: false)
+        else {
+            return
+        }
+        let (minimum, maximum) = scene.rootNode.flattenedClone().boundingBox
+        let center = SIMD3<Float>(
+            (minimum.x + maximum.x) / 2,
+            (minimum.y + maximum.y) / 2,
+            (minimum.z + maximum.z) / 2
+        )
+        let extent = SIMD3<Float>(
+            maximum.x - minimum.x,
+            maximum.y - minimum.y,
+            maximum.z - minimum.z
+        )
+        let distance = SceneCameraFit.distance(
+            toFit: extent,
+            verticalFieldOfViewDegrees: Float(camera.fieldOfView),
+            aspectRatio: Float(sceneView.bounds.width / sceneView.bounds.height)
+        )
+        let direction = simd_normalize(SIMD3<Float>(0.55, 0.45, 0.72))
+        target.position = SCNVector3(center.x, center.y, center.z)
+        camera.zFar = Double(max(distance + simd_length(extent) * 2, 40))
+        cameraNode.position = SCNVector3(
+            center.x + direction.x * distance,
+            center.y + direction.y * distance,
+            center.z + direction.z * distance
+        )
     }
 }
 
@@ -673,13 +746,5 @@ private class PhotoViewerViewController: UIViewController {
 extension PhotoViewerViewController: UIScrollViewDelegate {
     func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         return imageView
-    }
-}
-
-// MARK: - UIScrollViewDelegate
-
-extension RoomViewerViewController: UIScrollViewDelegate {
-    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-        return scrollView.viewWithTag(100) // The imageView
     }
 }

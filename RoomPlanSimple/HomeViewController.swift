@@ -326,9 +326,16 @@ class HomeViewController: UIViewController {
         recentScansStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         let savedRooms = RoomStorageManager.shared.getSavedRooms()
-        let recentRooms = Array(savedRooms.prefix(3))
+        let savedPointClouds = PointCloudStorageManager.shared.getSavedPointClouds()
+        let recentCaptures: [LibraryCaptureItem] = (
+            savedRooms.map(LibraryCaptureItem.room) +
+            savedPointClouds.map(LibraryCaptureItem.pointCloud)
+        ).sorted { $0.date > $1.date }
 
-        if recentRooms.isEmpty {
+        let visibleCaptures = Array(recentCaptures.prefix(3))
+        let totalCount = savedRooms.count + savedPointClouds.count
+
+        if visibleCaptures.isEmpty {
             recentHeaderStack.isHidden = true
             recentScansStack.isHidden = true
             emptyStateContainer.isHidden = false
@@ -336,18 +343,31 @@ class HomeViewController: UIViewController {
             recentHeaderStack.isHidden = false
             recentScansStack.isHidden = false
             emptyStateContainer.isHidden = true
-            viewAllButton.isHidden = savedRooms.count <= 3
+            viewAllButton.isHidden = totalCount <= 3
 
-            for room in recentRooms {
-                let card = ScanCardView()
-                card.configure(with: room, statusText: L10n.Home.ScanStatus.local.localized)
-                card.onTap = { [weak self] in
-                    self?.openRoom(room)
+            for capture in visibleCaptures {
+                switch capture {
+                case .room(let room):
+                    let card = ScanCardView()
+                    card.configure(with: room, statusText: L10n.Home.ScanStatus.local.localized)
+                    card.onTap = { [weak self] in
+                        self?.openRoom(room)
+                    }
+                    card.onOverflow = { [weak self] in
+                        self?.showRoomActions(for: room)
+                    }
+                    recentScansStack.addArrangedSubview(card)
+                case .pointCloud(let pointCloud):
+                    let card = ScanCardView()
+                    card.configure(with: pointCloud)
+                    card.onTap = { [weak self] in
+                        self?.openPointCloud(pointCloud)
+                    }
+                    card.onOverflow = { [weak self] in
+                        self?.showPointCloudActions(for: pointCloud)
+                    }
+                    recentScansStack.addArrangedSubview(card)
                 }
-                card.onOverflow = { [weak self] in
-                    self?.showRoomActions(for: room)
-                }
-                recentScansStack.addArrangedSubview(card)
             }
         }
     }
@@ -447,6 +467,34 @@ class HomeViewController: UIViewController {
         })
         alert.addAction(UIAlertAction(title: L10n.Home.SavedRooms.title.localized, style: .default) { [weak self] _ in
             self?.showSavedRooms()
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+        }
+        present(alert, animated: true)
+    }
+
+    private func openPointCloud(_ pointCloud: SavedPointCloud) {
+        let controller = PointCloudViewerViewController(capture: pointCloud)
+        let navController = UINavigationController(rootViewController: controller)
+        SpatialSenseTheme.configureNavigationBar(navController.navigationBar, immersive: true)
+        navController.modalPresentationStyle = .fullScreen
+        present(navController, animated: true)
+    }
+
+    private func showPointCloudActions(for pointCloud: SavedPointCloud) {
+        let alert = UIAlertController(title: pointCloud.name, message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "Share PCD", style: .default) { [weak self] _ in
+            guard let url = try? PointCloudStorageManager.shared.fileURL(for: pointCloud) else { return }
+            let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            activity.popoverPresentationController?.sourceView = self?.view
+            self?.present(activity, animated: true)
+        })
+        alert.addAction(UIAlertAction(title: L10n.Common.delete.localized, style: .destructive) { [weak self] _ in
+            try? PointCloudStorageManager.shared.delete(pointCloud)
+            self?.updateRecentScans()
         })
         alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
         if let popover = alert.popoverPresentationController {

@@ -120,7 +120,7 @@ enum SpatialSenseTheme {
         static let md: CGFloat = 8
         static let lg: CGFloat = 12
         static let pill: CGFloat = 999
-        static let card: CGFloat = 8
+        static let card: CGFloat = 12
         static let button: CGFloat = 8
         static let control: CGFloat = 12
     }
@@ -128,6 +128,7 @@ enum SpatialSenseTheme {
     // MARK: - Size
 
     enum Size {
+        static let minimumHitTarget: CGFloat = 44
         static let navbarHeight: CGFloat = 64
         static let controlButton: CGFloat = 52
         static let photoButton: CGFloat = 60
@@ -207,7 +208,7 @@ enum SpatialSenseTheme {
 
     static func applyStudioCardChrome(to view: UIView) {
         view.backgroundColor = Color.studioSurface
-        view.layer.cornerRadius = 18
+        view.layer.cornerRadius = Radius.lg
         view.layer.cornerCurve = .continuous
         view.layer.borderWidth = 1
         view.layer.borderColor = Color.studioBorder.cgColor
@@ -292,6 +293,31 @@ enum SpatialSenseTheme {
         button.widthAnchor.constraint(equalToConstant: diameter).isActive = true
         button.heightAnchor.constraint(equalToConstant: diameter).isActive = true
         return button
+    }
+
+    static func captureActionConfiguration(
+        title: String,
+        systemName: String
+    ) -> UIButton.Configuration {
+        var configuration = UIButton.Configuration.filled()
+        configuration.title = title
+        configuration.image = UIImage(systemName: systemName)
+        configuration.imagePadding = Space.sm
+        configuration.baseBackgroundColor = Color.primary
+        configuration.baseForegroundColor = Color.textOnInverse
+        configuration.cornerStyle = .capsule
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 12,
+            leading: Space.md,
+            bottom: 12,
+            trailing: Space.md
+        )
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = Font.button
+            return outgoing
+        }
+        return configuration
     }
 
     static func statusPillLabel() -> UILabel {

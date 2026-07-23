@@ -16,6 +16,14 @@ import SceneKit
 @MainActor
 class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, RoomCaptureSessionDelegate {
 
+    private enum ScanState {
+        case scanning
+        case processing
+        case review(CapturedRoom)
+        case saved(CapturedRoom, SavedRoom)
+        case error(String, CapturedRoom?)
+    }
+
     // MARK: - IBOutlets
 
     @IBOutlet var exportButton: UIButton?
@@ -24,13 +32,9 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     // MARK: - Private Properties
 
-    private var isScanning: Bool = false
-    private var isProcessingScan: Bool = false
-    private var didSaveCurrentScan: Bool = false
+    private var hasStartedSession = false
     private var roomCaptureView: RoomCaptureView!
     private var roomCaptureSessionConfig: RoomCaptureSession.Configuration = RoomCaptureSession.Configuration()
-    private var finalResults: CapturedRoom?
-    private var captureError: Error?
 
     // Statistics tracking
     private var scanStatistics = ScanStatistics()
@@ -38,27 +42,41 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     // Status UI
     private var statusLabel: UILabel?
-    private let captureControls = UIVisualEffectView(
-        effect: UIBlurEffect(style: .systemUltraThinMaterialDark)
-    )
     private let bottomCancelButton = UIButton(type: .system)
     private let bottomDoneButton = UIButton(type: .system)
+    private let moreButton = UIButton(type: .system)
+    private var scanState: ScanState = .scanning {
+        didSet { applyScanState() }
+    }
+    private var isScanning: Bool {
+        if case .scanning = scanState { return true }
+        return false
+    }
+    private var isProcessingScan: Bool {
+        if case .processing = scanState { return true }
+        return false
+    }
+    private var finalResults: CapturedRoom? {
+        switch scanState {
+        case .review(let room), .saved(let room, _): return room
+        case .error(_, let room): return room
+        case .scanning, .processing: return nil
+        }
+    }
+    private var savedRoom: SavedRoom? {
+        if case .saved(_, let savedRoom) = scanState { return savedRoom }
+        return nil
+    }
 
     // Photo capture
     private let photoCaptureManager = PhotoCaptureManager()
-    private var photoButton: UIButton?
-    private var photoCountLabel: UILabel?
-
-    // WiFi signal tracking
-    private let wifiSignalManager = WiFiSignalManager()
-    private var wifiToggleButton: UIButton?
-    private var wifiStatusLabel: UILabel?
-    private var wifiOverlayView: WiFiOverlayView?
+    private let photoButton = UIButton(type: .system)
+    private let photoCountLabel = UILabel()
 
     // Export manager (Issue #14 refactoring)
     private lazy var exportManager = RoomExportManager(
         presentingViewController: self,
-        sourceView: exportButton
+        sourceView: moreButton
     )
 
     // MARK: - Lifecycle
@@ -73,18 +91,9 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         setupRoomCaptureView()
         setupStatusLabel()
         setupPhotoButton()
-        setupWifiToggle()
         setupCaptureControls()
         styleExportButton()
         HapticFeedbackManager.shared.prepareGenerators()
-
-        // Listen for WiFi permission granted notification
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(wifiTrackingDidEnable),
-            name: .wifiTrackingDidEnable,
-            object: nil
-        )
 
         #if DEBUG
         // Only log on significant events, not continuously (reduces debug slowdown)
@@ -94,16 +103,19 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        startSession()
+        if !hasStartedSession, isScanning {
+            startSession()
+        }
     }
 
     override func viewWillDisappear(_ flag: Bool) {
         super.viewWillDisappear(flag)
-        stopSession()
-        cleanupResources()
-
-        // Clear delegates to prevent retain cycles (Issue #15)
-        if isBeingDismissed || isMovingFromParent {
+        let isLeavingCapture = isBeingDismissed
+            || isMovingFromParent
+            || navigationController?.isBeingDismissed == true
+        if isLeavingCapture {
+            stopSession()
+            cleanupResources()
             roomCaptureView?.captureSession.delegate = nil
             roomCaptureView?.delegate = nil
         }
@@ -115,7 +127,10 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         roomCaptureView = RoomCaptureView(frame: view.bounds)
         roomCaptureView.captureSession.delegate = self
         roomCaptureView.delegate = self
+        roomCaptureView.isModelEnabled = true
         roomCaptureView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        roomCaptureView.accessibilityLabel = "Live room scan and model preview"
+        roomCaptureView.accessibilityHint = "Move around the room to capture walls, openings, and objects."
 
         view.insertSubview(roomCaptureView, at: 0)
     }
@@ -134,271 +149,128 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     }
 
     private func setupCaptureControls() {
-        captureControls.translatesAutoresizingMaskIntoConstraints = false
-        captureControls.layer.cornerRadius = 28
-        captureControls.layer.cornerCurve = .continuous
-        captureControls.clipsToBounds = true
-        view.addSubview(captureControls)
-
         bottomCancelButton.translatesAutoresizingMaskIntoConstraints = false
         bottomCancelButton.setImage(UIImage(systemName: "xmark"), for: .normal)
         bottomCancelButton.tintColor = .white
-        bottomCancelButton.backgroundColor = UIColor.white.withAlphaComponent(0.12)
-        bottomCancelButton.layer.cornerRadius = 29
+        bottomCancelButton.backgroundColor = SpatialSenseTheme.Color.overlayStrong
+        bottomCancelButton.layer.cornerRadius = 24
+        bottomCancelButton.layer.cornerCurve = .continuous
         bottomCancelButton.layer.borderWidth = 1
-        bottomCancelButton.layer.borderColor = UIColor.white.withAlphaComponent(0.45).cgColor
-        bottomCancelButton.accessibilityLabel = L10n.Common.cancel.localized
+        bottomCancelButton.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        bottomCancelButton.accessibilityLabel = "Close room scan"
+        bottomCancelButton.accessibilityHint = "Stops scanning and returns to the capture library."
         bottomCancelButton.addTarget(self, action: #selector(cancelScanning(_:)), for: .touchUpInside)
 
         bottomDoneButton.translatesAutoresizingMaskIntoConstraints = false
-        var doneConfiguration = UIButton.Configuration.filled()
-        doneConfiguration.title = L10n.Common.done.localized
-        doneConfiguration.image = UIImage(systemName: "checkmark")
-        doneConfiguration.imagePadding = 8
-        doneConfiguration.baseBackgroundColor = SpatialSenseTheme.Color.primary
-        doneConfiguration.baseForegroundColor = .white
-        doneConfiguration.cornerStyle = .capsule
-        bottomDoneButton.configuration = doneConfiguration
+        bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+            title: "Finish scan",
+            systemName: "checkmark"
+        )
+        bottomDoneButton.accessibilityIdentifier = "roomScan.finish"
+        bottomDoneButton.accessibilityLabel = "Finish room scan"
+        bottomDoneButton.accessibilityHint = "Stops capture and processes the room model."
         bottomDoneButton.addTarget(self, action: #selector(doneScanning(_:)), for: .touchUpInside)
 
-        guard let exportButton else { return }
-        exportButton.removeFromSuperview()
-        exportButton.translatesAutoresizingMaskIntoConstraints = false
+        moreButton.translatesAutoresizingMaskIntoConstraints = false
+        moreButton.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        moreButton.tintColor = .white
+        moreButton.backgroundColor = SpatialSenseTheme.Color.overlayStrong
+        moreButton.layer.cornerRadius = 24
+        moreButton.layer.cornerCurve = .continuous
+        moreButton.layer.borderWidth = 1
+        moreButton.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        moreButton.showsMenuAsPrimaryAction = true
+        moreButton.accessibilityIdentifier = "roomScan.more"
+        moreButton.accessibilityLabel = "More scan actions"
 
-        let spacer = UIView()
-        spacer.translatesAutoresizingMaskIntoConstraints = false
-        let controls = UIStackView(arrangedSubviews: [
-            bottomCancelButton,
-            spacer,
-            exportButton,
-            bottomDoneButton
-        ])
-        controls.translatesAutoresizingMaskIntoConstraints = false
-        controls.axis = .horizontal
-        controls.alignment = .center
-        controls.spacing = 12
-        captureControls.contentView.addSubview(controls)
+        exportButton?.removeFromSuperview()
+
+        let leadingControls = UIStackView(arrangedSubviews: [bottomCancelButton, photoButton])
+        leadingControls.translatesAutoresizingMaskIntoConstraints = false
+        leadingControls.axis = .horizontal
+        leadingControls.alignment = .center
+        leadingControls.spacing = 12
+        view.addSubview(leadingControls)
+
+        let trailingControls = UIStackView(arrangedSubviews: [moreButton, bottomDoneButton])
+        trailingControls.translatesAutoresizingMaskIntoConstraints = false
+        trailingControls.axis = .vertical
+        trailingControls.alignment = .trailing
+        trailingControls.spacing = 12
+        view.addSubview(leadingControls)
+        view.addSubview(trailingControls)
 
         NSLayoutConstraint.activate([
-            captureControls.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            captureControls.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            captureControls.bottomAnchor.constraint(
-                equalTo: view.safeAreaLayoutGuide.bottomAnchor,
-                constant: -14
+            leadingControls.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            leadingControls.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+
+            bottomCancelButton.widthAnchor.constraint(equalToConstant: 48),
+            bottomCancelButton.heightAnchor.constraint(equalToConstant: 48),
+            photoButton.widthAnchor.constraint(equalToConstant: 48),
+            photoButton.heightAnchor.constraint(equalToConstant: 48),
+
+            trailingControls.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            trailingControls.bottomAnchor.constraint(
+                lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor,
+                constant: -24
             ),
-            captureControls.heightAnchor.constraint(equalToConstant: 94),
+            trailingControls.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
+            trailingControls.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 88),
 
-            controls.leadingAnchor.constraint(equalTo: captureControls.contentView.leadingAnchor, constant: 18),
-            controls.trailingAnchor.constraint(equalTo: captureControls.contentView.trailingAnchor, constant: -18),
-            controls.centerYAnchor.constraint(equalTo: captureControls.contentView.centerYAnchor),
-
-            bottomCancelButton.widthAnchor.constraint(equalToConstant: 58),
-            bottomCancelButton.heightAnchor.constraint(equalToConstant: 58),
-            exportButton.heightAnchor.constraint(equalToConstant: 48),
-            bottomDoneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            moreButton.widthAnchor.constraint(equalToConstant: 48),
+            moreButton.heightAnchor.constraint(equalToConstant: 48),
+            bottomDoneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 132),
             bottomDoneButton.heightAnchor.constraint(equalToConstant: 48)
         ])
+        updateMoreMenu()
+        applyScanState()
     }
 
     private func setupPhotoButton() {
-        let button = SpatialSenseTheme.circularControlButton(
-            systemName: "camera.fill",
-            diameter: SpatialSenseTheme.Size.photoButton
-        )
-        button.addTarget(self, action: #selector(capturePhoto), for: .touchUpInside)
-        button.accessibilityLabel = L10n.Feature.photoCaptureTitle.localized
-        view.addSubview(button)
+        photoButton.translatesAutoresizingMaskIntoConstraints = false
+        photoButton.setImage(UIImage(systemName: "camera.fill"), for: .normal)
+        photoButton.tintColor = .white
+        photoButton.backgroundColor = SpatialSenseTheme.Color.overlayStrong
+        photoButton.layer.cornerRadius = 24
+        photoButton.layer.cornerCurve = .continuous
+        photoButton.layer.borderWidth = 1
+        photoButton.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        photoButton.addTarget(self, action: #selector(capturePhoto), for: .touchUpInside)
+        photoButton.accessibilityIdentifier = "roomScan.photo"
+        photoButton.accessibilityLabel = L10n.Feature.photoCaptureTitle.localized
+        photoButton.accessibilityHint = "Captures a photo of the current scan view."
 
-        let countLabel = UILabel()
-        countLabel.translatesAutoresizingMaskIntoConstraints = false
-        countLabel.font = SpatialSenseTheme.Font.micro
-        countLabel.textColor = SpatialSenseTheme.Color.textOnInverse
-        countLabel.backgroundColor = SpatialSenseTheme.Color.primary
-        countLabel.textAlignment = .center
-        countLabel.layer.cornerRadius = 10
-        countLabel.clipsToBounds = true
-        countLabel.isHidden = true
-
-        view.addSubview(countLabel)
-
+        photoCountLabel.translatesAutoresizingMaskIntoConstraints = false
+        photoCountLabel.font = SpatialSenseTheme.Font.micro
+        photoCountLabel.textColor = .white
+        photoCountLabel.backgroundColor = SpatialSenseTheme.Color.primary
+        photoCountLabel.layer.cornerRadius = 8
+        photoCountLabel.clipsToBounds = true
+        photoCountLabel.textAlignment = .center
+        photoCountLabel.isHidden = true
+        photoButton.addSubview(photoCountLabel)
         NSLayoutConstraint.activate([
-            button.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            button.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-
-            countLabel.topAnchor.constraint(equalTo: button.topAnchor, constant: -5),
-            countLabel.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: 5),
-            countLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 20),
-            countLabel.heightAnchor.constraint(equalToConstant: 20)
+            photoCountLabel.topAnchor.constraint(equalTo: photoButton.topAnchor, constant: -4),
+            photoCountLabel.trailingAnchor.constraint(equalTo: photoButton.trailingAnchor, constant: 4),
+            photoCountLabel.heightAnchor.constraint(equalToConstant: 16),
+            photoCountLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 16)
         ])
-
-        photoButton = button
-        photoCountLabel = countLabel
-    }
-
-    private func setupWifiToggle() {
-        let button = SpatialSenseTheme.circularControlButton(
-            systemName: "wifi",
-            diameter: SpatialSenseTheme.Size.controlButton
-        )
-        button.addTarget(self, action: #selector(toggleWifi), for: .touchUpInside)
-        button.accessibilityLabel = L10n.Scan.wifiTracking.localized
-        view.addSubview(button)
-
-        let statusLabel = UILabel()
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.font = SpatialSenseTheme.Font.micro
-        statusLabel.textColor = SpatialSenseTheme.Color.textOnInverse
-        statusLabel.backgroundColor = SpatialSenseTheme.Color.overlay
-        statusLabel.textAlignment = .center
-        statusLabel.layer.cornerRadius = SpatialSenseTheme.Radius.sm
-        statusLabel.clipsToBounds = true
-        statusLabel.isHidden = true
-
-        view.addSubview(statusLabel)
-
-        NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            button.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-
-            statusLabel.topAnchor.constraint(equalTo: button.bottomAnchor, constant: 8),
-            statusLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            statusLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 50),
-            statusLabel.heightAnchor.constraint(equalToConstant: 20)
-        ])
-
-        wifiToggleButton = button
-        wifiStatusLabel = statusLabel
-        updateWifiButtonState()
-
-        setupWifiOverlay()
-    }
-
-    private func setupWifiOverlay() {
-        let overlayView = WiFiOverlayView(frame: view.bounds)
-        overlayView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        overlayView.isHidden = true // Only show when WiFi tracking enabled
-        view.addSubview(overlayView)
-        wifiOverlayView = overlayView
-
-        // Connect WiFi sample callback to overlay
-        wifiSignalManager.onSampleCaptured = { [weak self] sample in
-            guard let self = self, let overlayView = self.wifiOverlayView else { return }
-
-            // Convert WiFiSample.Position to SIMD3<Float>
-            let position = SIMD3<Float>(
-                sample.position.x,
-                sample.position.y,
-                sample.position.z
-            )
-
-            overlayView.addWiFiSample(
-                id: sample.id,
-                position: position,
-                rssi: sample.rssi
-            )
-
-            // Also add coverage point
-            overlayView.addCoveragePoint(position: position)
-        }
-    }
-
-    @objc private func toggleWifi() {
-        if !wifiSignalManager.isAuthorized {
-            // Request permission first
-            showWifiPermissionAlert()
-            return
-        }
-
-        wifiSignalManager.isEnabled.toggle()
-        updateWifiButtonState()
-
-        // Show/hide overlay
-        wifiOverlayView?.isHidden = !wifiSignalManager.isEnabled
-
-        if wifiSignalManager.isEnabled && isScanning {
-            wifiSignalManager.startSampling()
-        } else {
-            wifiSignalManager.stopSampling()
-        }
-
-        HapticFeedbackManager.shared.objectDetected()
-    }
-
-    private func showWifiPermissionAlert() {
-        let alert = UIAlertController(
-            title: L10n.WiFi.trackingTitle.localized,
-            message: L10n.WiFi.trackingMessage.localized,
-            preferredStyle: .alert
-        )
-
-        alert.addAction(UIAlertAction(title: L10n.WiFi.enable.localized, style: .default) { [weak self] _ in
-            self?.wifiSignalManager.requestPermission()
-        })
-        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
-
-        present(alert, animated: true)
-    }
-
-    private func updateWifiButtonState() {
-        let isOn = wifiSignalManager.isEnabled && wifiSignalManager.isAuthorized
-
-        UIView.animate(withDuration: 0.2) { [weak self] in
-            self?.wifiToggleButton?.backgroundColor = isOn
-                ? SpatialSenseTheme.Color.primary.withAlphaComponent(0.9)
-                : SpatialSenseTheme.Color.overlay
-            self?.wifiToggleButton?.setImage(
-                UIImage(systemName: isOn ? "wifi" : "wifi.slash"),
-                for: .normal
-            )
-            self?.wifiToggleButton?.layer.borderColor = (isOn
-                ? SpatialSenseTheme.Color.primary
-                : UIColor.white.withAlphaComponent(0.12)).cgColor
-        }
-
-        wifiStatusLabel?.isHidden = !isOn
-    }
-
-    private func updateWifiStatus() {
-        guard wifiSignalManager.isEnabled else { return }
-
-        let count = wifiSignalManager.sampleCount
-        if let rssi = wifiSignalManager.currentRSSI {
-            wifiStatusLabel?.text = " \(rssi)dB (\(count)) "
-        } else {
-            wifiStatusLabel?.text = " " + L10n.WiFi.samples.localized(count) + " "
-        }
-        wifiStatusLabel?.isHidden = false
-    }
-
-    @objc private func wifiTrackingDidEnable() {
-        // WiFi permission was granted and tracking is now enabled
-        updateWifiButtonState()
-        HapticFeedbackManager.shared.scanComplete()
-
-        // Start sampling if we're already scanning
-        if isScanning {
-            wifiSignalManager.startSampling()
-        }
     }
 
     private func cleanupResources() {
-        finalResults = nil
-        captureError = nil
         scanStatistics = ScanStatistics()
         lastObjectCount = 0
         photoCaptureManager.clearPhotos()
         photoCaptureManager.stopSession()
-        wifiSignalManager.stopSampling()
-        wifiSignalManager.clearSamples()
     }
 
     private func updatePhotoCount() {
         let count = photoCaptureManager.photoCount
         if count > 0 {
-            photoCountLabel?.text = " \(count) "
-            photoCountLabel?.isHidden = false
+            photoCountLabel.text = " \(count) "
+            photoCountLabel.isHidden = false
         } else {
-            photoCountLabel?.isHidden = true
+            photoCountLabel.isHidden = true
         }
     }
 
@@ -434,36 +306,17 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     // MARK: - Session Management
 
     private func startSession() {
-        isScanning = true
-        isProcessingScan = false
-        didSaveCurrentScan = false
-        captureError = nil
+        hasStartedSession = true
+        scanState = .scanning
         roomCaptureView?.captureSession.run(configuration: roomCaptureSessionConfig)
         photoCaptureManager.startSession()
-
-        // Clear WiFi overlay from previous scans
-        wifiOverlayView?.clear()
-
-        // Apply default WiFi tracking setting
-        if AppSettings.shared.defaultWifiTracking && wifiSignalManager.isAuthorized {
-            wifiSignalManager.isEnabled = true
-            updateWifiButtonState()
-            wifiOverlayView?.isHidden = false
-        }
-
-        // Start WiFi sampling if enabled
-        if wifiSignalManager.isEnabled && wifiSignalManager.isAuthorized {
-            wifiSignalManager.startSampling()
-        }
 
         updateNavBar(isScanning: true)
     }
 
     private func stopSession() {
-        isScanning = false
         roomCaptureView?.captureSession.stop()
         photoCaptureManager.stopSession()
-        wifiSignalManager.stopSampling()
         updateNavBar(isScanning: false)
     }
 
@@ -472,7 +325,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     nonisolated func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: Error?) -> Bool {
         if let error = error {
             Task { @MainActor in
-                self.captureError = error
+                self.scanState = .error(error.localizedDescription, nil)
             }
         }
         return true
@@ -480,60 +333,32 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     nonisolated func captureView(didPresent processedResult: CapturedRoom, error: Error?) {
         Task { @MainActor in
-            if let error = error {
-                self.captureError = error
+            if let error {
                 self.showError(RoomCaptureError.processingFailed(underlying: error))
                 HapticFeedbackManager.shared.scanError()
-                self.finishProcessingWithoutSave()
+                self.scanState = .error(error.localizedDescription, processedResult)
             } else {
                 HapticFeedbackManager.shared.scanComplete()
+                self.scanState = .review(processedResult)
             }
-            self.finalResults = processedResult
             self.scanStatistics = ScanStatistics.from(processedResult)
 
             // Auto-save if enabled in settings
             if AppSettings.shared.autoSaveScans && error == nil {
                 self.performAutoSave(processedResult)
-            } else if error == nil {
-                self.finishProcessingWithoutSave()
             }
         }
     }
 
     private func performAutoSave(_ room: CapturedRoom) {
         do {
-            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager, wifiManager: wifiSignalManager)
-            didSaveCurrentScan = true
+            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager)
+            scanState = .saved(room, savedRoom)
             showAutoSaveConfirmation(savedRoom)
-            finishProcessingAfterSave()
         } catch {
             print("Auto-save failed: \(error)")
             showError(RoomCaptureError.exportFailed(underlying: error))
-            finishProcessingWithoutSave()
         }
-    }
-
-    private func finishProcessingAfterSave() {
-        isProcessingScan = false
-        doneButton?.title = L10n.Common.done.localized
-        setBottomDoneTitle(L10n.Common.done.localized)
-        doneButton?.isEnabled = true
-        bottomDoneButton.isEnabled = true
-        cancelButton?.isEnabled = true
-        bottomCancelButton.isEnabled = true
-        exportButton?.isHidden = false
-    }
-
-    private func finishProcessingWithoutSave() {
-        isProcessingScan = false
-        let title = didSaveCurrentScan ? L10n.Common.done.localized : "Save & Close"
-        doneButton?.title = title
-        setBottomDoneTitle(title)
-        doneButton?.isEnabled = true
-        bottomDoneButton.isEnabled = true
-        cancelButton?.isEnabled = true
-        bottomCancelButton.isEnabled = true
-        exportButton?.isHidden = false
     }
 
     private func showAutoSaveConfirmation(_ savedRoom: SavedRoom) {
@@ -546,6 +371,8 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         toast.clipsToBounds = true
         toast.textAlignment = .center
         toast.translatesAutoresizingMaskIntoConstraints = false
+        toast.adjustsFontForContentSizeCategory = true
+        toast.accessibilityTraits = .staticText
         view.addSubview(toast)
 
         NSLayoutConstraint.activate([
@@ -570,19 +397,16 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     nonisolated func captureSession(_ session: RoomCaptureSession, didFailWithError error: Error) {
         Task { @MainActor in
-            self.captureError = error
             HapticFeedbackManager.shared.scanError()
             self.showError(RoomCaptureError.sessionFailed(underlying: error))
             self.updateStatusLabel(AppConstants.Strings.scanningFailed, isError: true)
+            self.scanState = .error(AppConstants.Strings.scanningFailed, nil)
         }
     }
 
     nonisolated func captureSession(_ session: RoomCaptureSession, didUpdate room: CapturedRoom) {
         let totalObjects = room.walls.count + room.doors.count + room.windows.count + room.objects.count
         let stats = ScanStatistics.from(room)
-
-        // Get approximate position from room center (device is likely near edges during scan)
-        let roomCenter = RoomGeometry.getRoomCenter(from: room)
 
         Task { @MainActor in
             // Haptic feedback when new objects detected
@@ -592,34 +416,21 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             }
             self.scanStatistics = stats
 
-            // Update WiFi position tracking (use room center as reference)
-            if let center = roomCenter {
-                self.wifiSignalManager.updatePosition(center)
-
-                // Update overlay camera transform
-                // For the forward vector, assume user is scanning from edges toward center
-                // Use a default forward vector pointing into the room
-                let forward = SIMD3<Float>(0, 0, -1)
-                self.wifiOverlayView?.updateCameraTransform(position: center, forward: forward)
-            }
-            self.updateWifiStatus()
         }
     }
 
     nonisolated func captureSession(_ session: RoomCaptureSession, didStartWith configuration: RoomCaptureSession.Configuration) {
         Task { @MainActor in
-            self.updateStatusLabel(AppConstants.Strings.scanningStarted)
-            try? await Task.sleep(nanoseconds: UInt64(AppConstants.UI.statusLabelAutoHideDelay * 1_000_000_000))
-            self.hideStatusLabel()
+            UIAccessibility.post(notification: .announcement, argument: "Room scan started")
         }
     }
 
     nonisolated func captureSession(_ session: RoomCaptureSession, didEndWith data: CapturedRoomData, error: Error?) {
         Task { @MainActor in
-            if let error = error {
-                self.captureError = error
+            if error != nil {
                 HapticFeedbackManager.shared.scanError()
                 self.updateStatusLabel(AppConstants.Strings.scanEndedWithError, isError: true)
+                self.scanState = .error(AppConstants.Strings.scanEndedWithError, self.finalResults)
             } else {
                 HapticFeedbackManager.shared.scanComplete()
                 self.hideStatusLabel()
@@ -631,24 +442,11 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     @IBAction func doneScanning(_ sender: Any) {
         if isScanning {
-            isProcessingScan = true
-            doneButton?.title = L10n.Scan.processing.localized
-            setBottomDoneTitle(L10n.Scan.processing.localized)
-            doneButton?.isEnabled = false
-            bottomDoneButton.isEnabled = false
-            cancelButton?.isEnabled = false
-            bottomCancelButton.isEnabled = false
-            exportButton?.isHidden = true
+            scanState = .processing
             stopSession()
         } else if isProcessingScan {
             return
-        } else if !didSaveCurrentScan, let results = finalResults {
-            doneButton?.title = L10n.Scan.saving.localized
-            setBottomDoneTitle(L10n.Scan.saving.localized)
-            doneButton?.isEnabled = false
-            bottomDoneButton.isEnabled = false
-            cancelButton?.isEnabled = false
-            bottomCancelButton.isEnabled = false
+        } else if savedRoom == nil, let results = finalResults {
             performAutoSave(results)
         } else {
             cancelScanning(sender)
@@ -663,7 +461,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         guard isScanning, let captureView = roomCaptureView else { return }
 
         // Visual feedback - flash effect
-        photoButton?.alpha = 0.5
+        photoButton.alpha = 0.5
         HapticFeedbackManager.shared.objectDetected()
 
         // Play shutter sound
@@ -695,7 +493,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         photoCaptureManager.addPhoto(image)
 
         UIView.animate(withDuration: 0.2) {
-            self.photoButton?.alpha = 1.0
+            self.photoButton.alpha = 1.0
         }
 
         updatePhotoCount()
@@ -712,13 +510,14 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         feedbackLabel.layer.cornerRadius = SpatialSenseTheme.Radius.md
         feedbackLabel.clipsToBounds = true
         feedbackLabel.translatesAutoresizingMaskIntoConstraints = false
+        feedbackLabel.adjustsFontForContentSizeCategory = true
 
         view.addSubview(feedbackLabel)
         NSLayoutConstraint.activate([
             feedbackLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            feedbackLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -100),
-            feedbackLabel.widthAnchor.constraint(equalToConstant: 140),
-            feedbackLabel.heightAnchor.constraint(equalToConstant: 32)
+            feedbackLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 72),
+            feedbackLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 140),
+            feedbackLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 32)
         ])
 
         UIView.animate(withDuration: 0.3, delay: 1.0, options: [], animations: {
@@ -752,8 +551,13 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
     // MARK: - Save Room
 
     private func saveRoom(_ room: CapturedRoom) {
+        if let savedRoom {
+            showSaveSuccess(savedRoom)
+            return
+        }
         do {
-            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager, wifiManager: wifiSignalManager)
+            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager)
+            scanState = .saved(room, savedRoom)
             showSaveSuccess(savedRoom)
             HapticFeedbackManager.shared.scanComplete()
         } catch {
@@ -779,8 +583,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             return
         }
 
-        let samples = wifiSignalManager.collectedSamples
-        let floorPlanVC = FloorPlanViewController(room: room, wifiSamples: samples)
+        let floorPlanVC = FloorPlanViewController(room: room)
         let navController = UINavigationController(rootViewController: floorPlanVC)
         navController.modalPresentationStyle = .fullScreen
         present(navController, animated: true)
@@ -806,6 +609,95 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
     // MARK: - UI State Management
 
+    private func updateMoreMenu() {
+        guard isViewLoaded else { return }
+        var actions: [UIMenuElement] = []
+
+        if isScanning {
+            // Photo capture uses the dedicated camera button in the scan chrome.
+        } else if finalResults != nil {
+            actions.append(UIAction(
+                title: "Share or export",
+                image: UIImage(systemName: "square.and.arrow.up")
+            ) { [weak self] _ in
+                guard let self else { return }
+                self.exportResults(self.moreButton)
+            })
+        }
+
+        moreButton.menu = UIMenu(title: "Scan actions", children: actions)
+        moreButton.accessibilityValue = actions.isEmpty ? "Unavailable" : nil
+    }
+
+    private func applyScanState() {
+        guard isViewLoaded else { return }
+
+        switch scanState {
+        case .scanning:
+            bottomCancelButton.isEnabled = true
+            bottomDoneButton.isEnabled = true
+            bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Finish scan",
+                systemName: "checkmark"
+            )
+            bottomDoneButton.accessibilityLabel = "Finish room scan"
+            bottomDoneButton.accessibilityHint = "Stops capture and processes the room model."
+            photoButton.isHidden = false
+            moreButton.isHidden = false
+            hideStatusLabel()
+
+        case .processing:
+            bottomCancelButton.isEnabled = false
+            bottomDoneButton.isEnabled = false
+            bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Processing…",
+                systemName: "hourglass"
+            )
+            bottomDoneButton.accessibilityLabel = "Processing room scan"
+            photoButton.isHidden = true
+            moreButton.isHidden = true
+            updateStatusLabel("Processing room model")
+            UIAccessibility.post(notification: .announcement, argument: "Processing room model")
+
+        case .review:
+            bottomCancelButton.isEnabled = true
+            bottomDoneButton.isEnabled = true
+            bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Save & close",
+                systemName: "checkmark"
+            )
+            bottomDoneButton.accessibilityLabel = "Save room and close"
+            bottomDoneButton.accessibilityHint = "Saves this room to the capture library."
+            photoButton.isHidden = true
+            moreButton.isHidden = false
+            hideStatusLabel()
+            UIAccessibility.post(notification: .announcement, argument: "Room model ready to save")
+
+        case .saved:
+            bottomCancelButton.isEnabled = true
+            bottomDoneButton.isEnabled = true
+            bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Close",
+                systemName: "checkmark"
+            )
+            bottomDoneButton.accessibilityLabel = "Close saved room"
+            photoButton.isHidden = true
+            moreButton.isHidden = false
+            hideStatusLabel()
+            UIAccessibility.post(notification: .announcement, argument: "Room saved")
+
+        case .error(let message, _):
+            bottomCancelButton.isEnabled = true
+            bottomDoneButton.isEnabled = false
+            photoButton.isHidden = true
+            moreButton.isHidden = true
+            updateStatusLabel(message, isError: true)
+            UIAccessibility.post(notification: .announcement, argument: message)
+        }
+
+        updateMoreMenu()
+    }
+
     private func updateNavBar(isScanning: Bool) {
         let tintColor = isScanning ? AppConstants.Colors.activeNavBarTint : AppConstants.Colors.completeNavBarTint
         exportButton?.isHidden = isScanning || isProcessingScan
@@ -816,12 +708,6 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             self?.bottomCancelButton.tintColor = .white
             self?.exportButton?.alpha = isScanning ? 0.0 : 1.0
         }
-    }
-
-    private func setBottomDoneTitle(_ title: String) {
-        var configuration = bottomDoneButton.configuration
-        configuration?.title = title
-        bottomDoneButton.configuration = configuration
     }
 
     private func styleExportButton() {
