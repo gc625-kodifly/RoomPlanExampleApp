@@ -140,7 +140,7 @@
 "export.dxf" = "DXF（CAD 平面图）";
 "export.svg" = "SVG（矢量平面图）";
 "export.ifc" = "IFC（BIM 模型）";
-"export.formatDesc.ifc" = "Industry Foundation Classes — 开放 BIM 标准";
+"export.formatDesc.ifc" = "Industry Foundation Classes - 开放 BIM 标准";
 "export.png" = "PNG（平面图图片）";
 "export.chooseExport" = "选择导出内容";
 "export.floorPlanImage" = "平面图图片";

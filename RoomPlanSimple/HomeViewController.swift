@@ -197,21 +197,19 @@ class HomeViewController: UIViewController {
     private func setupActionButtons() {
         newScanButton.configuration = SpatialSenseTheme.primaryButtonConfiguration(
             title: L10n.Home.NewScan.title.localized,
-            subtitle: L10n.Home.NewScan.subtitle.localized,
             icon: "plus.viewfinder"
         )
         newScanButton.translatesAutoresizingMaskIntoConstraints = false
-        newScanButton.heightAnchor.constraint(equalToConstant: 80).isActive = true
+        newScanButton.heightAnchor.constraint(equalToConstant: 56).isActive = true
         newScanButton.accessibilityIdentifier = "home.newScan"
         newScanButton.addTarget(self, action: #selector(startScan), for: .touchUpInside)
 
         pointCloudScanButton.configuration = SpatialSenseTheme.primaryButtonConfiguration(
             title: "Point Cloud Scan",
-            subtitle: "Capture ARKit mesh vertices for PCD export",
             icon: "point.3.connected.trianglepath.dotted"
         )
         pointCloudScanButton.translatesAutoresizingMaskIntoConstraints = false
-        pointCloudScanButton.heightAnchor.constraint(equalToConstant: 80).isActive = true
+        pointCloudScanButton.heightAnchor.constraint(equalToConstant: 56).isActive = true
         pointCloudScanButton.accessibilityIdentifier = "home.pointCloudScan"
         pointCloudScanButton.addTarget(self, action: #selector(startPointCloudScan), for: .touchUpInside)
 
@@ -349,7 +347,7 @@ class HomeViewController: UIViewController {
                 switch capture {
                 case .room(let room):
                     let card = ScanCardView()
-                    card.configure(with: room, statusText: L10n.Home.ScanStatus.local.localized)
+                    card.configure(with: room)
                     card.onTap = { [weak self] in
                         self?.openRoom(room)
                     }
@@ -380,15 +378,11 @@ class HomeViewController: UIViewController {
             newScanButton.alpha = 0.55
             pointCloudScanButton.isEnabled = false
             pointCloudScanButton.alpha = 0.55
-            var config = newScanButton.configuration
-            config?.attributedSubtitle = AttributedString(L10n.Home.NewScan.noLidar.localized)
-            newScanButton.configuration = config
+            newScanButton.accessibilityValue = L10n.Home.NewScan.noLidar.localized
         } else if !ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
             pointCloudScanButton.isEnabled = false
             pointCloudScanButton.alpha = 0.55
-            var config = pointCloudScanButton.configuration
-            config?.attributedSubtitle = AttributedString("Scene reconstruction is unavailable on this device")
-            pointCloudScanButton.configuration = config
+            pointCloudScanButton.accessibilityValue = "Scene reconstruction is unavailable on this device"
         }
     }
 

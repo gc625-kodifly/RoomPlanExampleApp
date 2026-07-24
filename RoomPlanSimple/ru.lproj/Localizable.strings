@@ -140,7 +140,7 @@
 "export.dxf" = "DXF (CAD план)";
 "export.svg" = "SVG (векторный план)";
 "export.ifc" = "IFC (BIM модель)";
-"export.formatDesc.ifc" = "Industry Foundation Classes — открытый стандарт BIM";
+"export.formatDesc.ifc" = "Industry Foundation Classes - открытый стандарт BIM";
 "export.png" = "PNG (изображение)";
 "export.chooseExport" = "Выберите экспорт";
 "export.floorPlanImage" = "Изображение плана этажа";

@@ -7,5 +7,5 @@
 
 "NSCameraUsageDescription" = "相机和激光雷达访问用于创建房间模型。您选择拍摄的证据照片会随房间保存，直到您删除或导出它们。";
 
-"CFBundleDisplayName" = "房间规划";
-"CFBundleName" = "房间规划";
+"CFBundleDisplayName" = "SpatialSense";
+"CFBundleName" = "SpatialSense";

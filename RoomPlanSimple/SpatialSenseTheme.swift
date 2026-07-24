@@ -142,7 +142,8 @@ enum SpatialSenseTheme {
     // MARK: - Typography
 
     enum Font {
-        private static let brandFamily = "PlusJakartaSans"
+        // Prefer Plus Jakarta when embedded; otherwise SF (system) keeps Dynamic Type honest.
+        private static let brandFamily = "PlusJakartaSans-Regular"
         private static let brandFamilyBold = "PlusJakartaSans-Bold"
         private static let brandFamilySemiBold = "PlusJakartaSans-SemiBold"
         private static let brandFamilyMedium = "PlusJakartaSans-Medium"
@@ -228,9 +229,9 @@ enum SpatialSenseTheme {
         config.baseForegroundColor = Color.textOnInverse
         config.cornerStyle = .medium
         config.contentInsets = NSDirectionalEdgeInsets(
-            top: Space.md,
+            top: Space.md - 2,
             leading: Space.md,
-            bottom: Space.md,
+            bottom: Space.md - 2,
             trailing: Space.md
         )
 
@@ -238,7 +239,8 @@ enum SpatialSenseTheme {
         titleAttr.font = Font.button
         config.attributedTitle = titleAttr
 
-        if let subtitle {
+        // Subtitles are discouraged in the product chrome. Keep optional for rare states only.
+        if let subtitle, !subtitle.isEmpty {
             var subtitleAttr = AttributedString(subtitle)
             subtitleAttr.font = Font.caption
             config.attributedSubtitle = subtitleAttr
@@ -248,7 +250,7 @@ enum SpatialSenseTheme {
             config.image = UIImage(systemName: icon)
             config.imagePlacement = .leading
             config.imagePadding = Space.sm
-            config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 22, weight: .semibold)
+            config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
         }
 
         return config

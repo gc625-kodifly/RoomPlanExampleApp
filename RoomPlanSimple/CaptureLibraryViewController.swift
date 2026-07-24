@@ -12,6 +12,7 @@ import ARKit
 @MainActor
 final class CaptureLibraryViewController: UIViewController {
 
+    private let blueprintBackground = BlueprintBackgroundView()
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
     private let capturesStack = UIStackView()
@@ -47,14 +48,20 @@ final class CaptureLibraryViewController: UIViewController {
         view.backgroundColor = SpatialSenseTheme.Color.studioBackground
         overrideUserInterfaceStyle = .dark
 
+        blueprintBackground.translatesAutoresizingMaskIntoConstraints = false
+        blueprintBackground.variant = .darkStudio
+        blueprintBackground.gridSpacing = 36
+        view.addSubview(blueprintBackground)
+
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.alwaysBounceVertical = true
         scrollView.showsVerticalScrollIndicator = false
+        scrollView.backgroundColor = .clear
         view.addSubview(scrollView)
 
         contentStack.translatesAutoresizingMaskIntoConstraints = false
         contentStack.axis = .vertical
-        contentStack.spacing = 24
+        contentStack.spacing = 20
         scrollView.addSubview(contentStack)
 
         let topBar = makeTopBar()
@@ -62,9 +69,6 @@ final class CaptureLibraryViewController: UIViewController {
 
         let heading = makeLibraryHeading()
         contentStack.addArrangedSubview(heading)
-
-        let capturePrompt = makeCapturePrompt()
-        contentStack.addArrangedSubview(capturePrompt)
 
         capturesStack.axis = .vertical
         capturesStack.spacing = 16
@@ -77,12 +81,17 @@ final class CaptureLibraryViewController: UIViewController {
         view.addSubview(dock)
 
         NSLayoutConstraint.activate([
+            blueprintBackground.topAnchor.constraint(equalTo: view.topAnchor),
+            blueprintBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            blueprintBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            blueprintBackground.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: dock.topAnchor, constant: -8),
 
-            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 18),
+            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 16),
             contentStack.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 24),
             contentStack.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor, constant: -24),
             contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -32),
@@ -90,50 +99,39 @@ final class CaptureLibraryViewController: UIViewController {
             dock.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             dock.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
             dock.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -10),
-            dock.heightAnchor.constraint(equalToConstant: 78)
+            dock.heightAnchor.constraint(equalToConstant: 64)
         ])
     }
 
     private func makeTopBar() -> UIView {
         let container = UIView()
 
-        let mark = UIView()
+        let mark = UIImageView(image: UIImage(named: "BrandMark"))
         mark.translatesAutoresizingMaskIntoConstraints = false
-        mark.backgroundColor = SpatialSenseTheme.Color.primary
-        mark.layer.cornerRadius = 12
-        mark.layer.cornerCurve = .continuous
-
-        let markIcon = UIImageView(image: UIImage(systemName: "square.stack.3d.up.fill"))
-        markIcon.translatesAutoresizingMaskIntoConstraints = false
-        markIcon.tintColor = .white
-        markIcon.contentMode = .scaleAspectFit
-        mark.addSubview(markIcon)
+        mark.contentMode = .scaleAspectFit
+        mark.accessibilityIgnoresInvertColors = true
 
         let brand = UILabel()
         brand.translatesAutoresizingMaskIntoConstraints = false
-        brand.text = "SpatialSense"
-        brand.font = SpatialSenseTheme.Font.bold(22, relativeTo: .title2)
+        brand.text = L10n.Home.brandName.localized
+        brand.font = SpatialSenseTheme.Font.semibold(20, relativeTo: .title3)
         brand.textColor = .white
 
         let help = makeRoundButton(icon: "questionmark")
         help.addTarget(self, action: #selector(showHelp), for: .touchUpInside)
-        help.accessibilityLabel = L10n.Help.title.localized
+        help.accessibilityLabel = L10n.Home.Help.title.localized
 
         container.addSubview(mark)
         container.addSubview(brand)
         container.addSubview(help)
 
         NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(equalToConstant: 48),
+            container.heightAnchor.constraint(equalToConstant: 44),
             mark.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             mark.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            mark.widthAnchor.constraint(equalToConstant: 42),
-            mark.heightAnchor.constraint(equalToConstant: 42),
-            markIcon.centerXAnchor.constraint(equalTo: mark.centerXAnchor),
-            markIcon.centerYAnchor.constraint(equalTo: mark.centerYAnchor),
-            markIcon.widthAnchor.constraint(equalToConstant: 23),
-            markIcon.heightAnchor.constraint(equalToConstant: 23),
-            brand.leadingAnchor.constraint(equalTo: mark.trailingAnchor, constant: 12),
+            mark.widthAnchor.constraint(equalToConstant: 28),
+            mark.heightAnchor.constraint(equalToConstant: 28),
+            brand.leadingAnchor.constraint(equalTo: mark.trailingAnchor, constant: 10),
             brand.centerYAnchor.constraint(equalTo: mark.centerYAnchor),
             help.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             help.centerYAnchor.constraint(equalTo: container.centerYAnchor)
@@ -145,196 +143,92 @@ final class CaptureLibraryViewController: UIViewController {
     private func makeLibraryHeading() -> UIView {
         let title = UILabel()
         title.text = L10n.Home.SavedRooms.title.localized
-        title.font = SpatialSenseTheme.Font.bold(32, relativeTo: .largeTitle)
+        title.font = SpatialSenseTheme.Font.semibold(28, relativeTo: .title1)
         title.textColor = .white
 
-        countLabel.font = SpatialSenseTheme.Font.body
-        countLabel.textColor = UIColor.white.withAlphaComponent(0.48)
+        countLabel.font = SpatialSenseTheme.Font.caption
+        countLabel.textColor = UIColor.white.withAlphaComponent(0.42)
+        countLabel.numberOfLines = 1
 
         let stack = UIStackView(arrangedSubviews: [title, countLabel])
         stack.axis = .vertical
-        stack.spacing = 5
+        stack.spacing = 6
         return stack
-    }
-
-    private func makeCapturePrompt() -> UIView {
-        let card = UIView()
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.backgroundColor = SpatialSenseTheme.Color.studioSurface
-        card.layer.cornerRadius = SpatialSenseTheme.Radius.lg
-        card.layer.cornerCurve = .continuous
-        card.layer.borderWidth = 1
-        card.layer.borderColor = SpatialSenseTheme.Color.studioBorder.cgColor
-        card.clipsToBounds = true
-
-        let iconTile = UIView()
-        iconTile.translatesAutoresizingMaskIntoConstraints = false
-        iconTile.backgroundColor = SpatialSenseTheme.Color.primary.withAlphaComponent(0.16)
-        iconTile.layer.cornerRadius = 16
-        iconTile.layer.cornerCurve = .continuous
-
-        let icon = UIImageView(image: UIImage(systemName: "viewfinder"))
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        icon.tintColor = SpatialSenseTheme.Color.primary
-        icon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 30, weight: .medium)
-        iconTile.addSubview(icon)
-
-        let eyebrow = UILabel()
-        eyebrow.text = "SPATIAL CAPTURE"
-        eyebrow.font = SpatialSenseTheme.Font.caption
-        eyebrow.textColor = SpatialSenseTheme.Color.primary
-
-        let title = UILabel()
-        title.text = L10n.Home.NewScan.title.localized
-        title.font = SpatialSenseTheme.Font.bold(25, relativeTo: .title2)
-        title.textColor = .white
-        title.adjustsFontForContentSizeCategory = true
-        title.numberOfLines = 0
-
-        let subtitle = UILabel()
-        subtitle.text = L10n.Home.NewScan.subtitle.localized
-        subtitle.font = SpatialSenseTheme.Font.body
-        subtitle.textColor = UIColor.white.withAlphaComponent(0.58)
-        subtitle.numberOfLines = 2
-        subtitle.adjustsFontForContentSizeCategory = true
-
-        let labels = UIStackView(arrangedSubviews: [eyebrow, title, subtitle])
-        labels.translatesAutoresizingMaskIntoConstraints = false
-        labels.axis = .vertical
-        labels.spacing = 5
-
-        let arrow = UIImageView(image: UIImage(systemName: "arrow.up.right"))
-        arrow.translatesAutoresizingMaskIntoConstraints = false
-        arrow.tintColor = .white
-        arrow.backgroundColor = SpatialSenseTheme.Color.primary
-        arrow.layer.cornerRadius = 24
-        arrow.contentMode = .center
-        arrow.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
-
-        let tap = UIButton(type: .system)
-        tap.translatesAutoresizingMaskIntoConstraints = false
-        tap.accessibilityIdentifier = "home.newScan"
-        tap.accessibilityLabel = L10n.Home.NewScan.title.localized
-        tap.addTarget(self, action: #selector(startScan), for: .touchUpInside)
-
-        card.addSubview(iconTile)
-        card.addSubview(labels)
-        card.addSubview(arrow)
-        card.addSubview(tap)
-
-        NSLayoutConstraint.activate([
-            card.heightAnchor.constraint(greaterThanOrEqualToConstant: 154),
-
-            iconTile.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 18),
-            iconTile.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            iconTile.widthAnchor.constraint(equalToConstant: 70),
-            iconTile.heightAnchor.constraint(equalToConstant: 70),
-            icon.centerXAnchor.constraint(equalTo: iconTile.centerXAnchor),
-            icon.centerYAnchor.constraint(equalTo: iconTile.centerYAnchor),
-
-            labels.leadingAnchor.constraint(equalTo: iconTile.trailingAnchor, constant: 18),
-            labels.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            labels.trailingAnchor.constraint(lessThanOrEqualTo: arrow.leadingAnchor, constant: -18),
-
-            arrow.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -18),
-            arrow.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            arrow.widthAnchor.constraint(equalToConstant: 48),
-            arrow.heightAnchor.constraint(equalToConstant: 48),
-
-            tap.topAnchor.constraint(equalTo: card.topAnchor),
-            tap.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            tap.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            tap.bottomAnchor.constraint(equalTo: card.bottomAnchor)
-        ])
-
-        return card
     }
 
     private func setupEmptyState() {
         emptyState.translatesAutoresizingMaskIntoConstraints = false
-        emptyState.backgroundColor = SpatialSenseTheme.Color.studioSurface.withAlphaComponent(0.55)
-        emptyState.layer.cornerRadius = SpatialSenseTheme.Radius.lg
-        emptyState.layer.cornerCurve = .continuous
-        emptyState.layer.borderWidth = 1
-        emptyState.layer.borderColor = SpatialSenseTheme.Color.studioBorder.cgColor
-
-        let icon = UIImageView(image: UIImage(systemName: "cube.transparent"))
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        icon.tintColor = UIColor.white.withAlphaComponent(0.35)
-        icon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 38, weight: .light)
+        emptyState.backgroundColor = .clear
 
         let title = UILabel()
         title.translatesAutoresizingMaskIntoConstraints = false
         title.text = L10n.Home.emptyStateTitle.localized
-        title.font = SpatialSenseTheme.Font.semibold(18)
+        title.font = SpatialSenseTheme.Font.semibold(17)
         title.textColor = .white
 
         let detail = UILabel()
         detail.translatesAutoresizingMaskIntoConstraints = false
-        detail.text = L10n.Home.emptyState.localized
+        detail.text = L10n.Home.capturesEmptyHint.localized
         detail.font = SpatialSenseTheme.Font.body
-        detail.textColor = UIColor.white.withAlphaComponent(0.48)
-        detail.textAlignment = .center
-        detail.numberOfLines = 2
+        detail.textColor = UIColor.white.withAlphaComponent(0.42)
+        detail.textAlignment = .left
+        detail.numberOfLines = 0
 
-        let createButton = UIButton(type: .system)
-        createButton.translatesAutoresizingMaskIntoConstraints = false
-        createButton.configuration = SpatialSenseTheme.captureActionConfiguration(
-            title: L10n.Home.NewScan.title.localized,
-            systemName: "plus"
-        )
-        createButton.accessibilityIdentifier = "home.empty.newScan"
-        createButton.addTarget(self, action: #selector(startScan), for: .touchUpInside)
-
-        emptyState.addSubview(icon)
         emptyState.addSubview(title)
         emptyState.addSubview(detail)
-        emptyState.addSubview(createButton)
 
         NSLayoutConstraint.activate([
-            emptyState.heightAnchor.constraint(greaterThanOrEqualToConstant: 246),
-            icon.topAnchor.constraint(equalTo: emptyState.topAnchor, constant: 32),
-            icon.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor),
-            title.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 18),
-            title.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor),
+            emptyState.heightAnchor.constraint(greaterThanOrEqualToConstant: 96),
+            title.topAnchor.constraint(equalTo: emptyState.topAnchor, constant: 24),
+            title.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor),
             detail.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 8),
-            detail.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor, constant: 40),
-            detail.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor, constant: -40),
-            createButton.topAnchor.constraint(equalTo: detail.bottomAnchor, constant: 18),
-            createButton.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor),
-            createButton.bottomAnchor.constraint(lessThanOrEqualTo: emptyState.bottomAnchor, constant: -24),
-            createButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 48)
+            detail.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor),
+            detail.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor),
+            detail.bottomAnchor.constraint(equalTo: emptyState.bottomAnchor, constant: -8)
         ])
     }
 
     private func makeBottomDock() -> UIView {
-        let dock = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        let dock = UIView()
         dock.translatesAutoresizingMaskIntoConstraints = false
-        dock.layer.cornerRadius = 28
+        dock.backgroundColor = SpatialSenseTheme.Color.studioSurface.withAlphaComponent(0.92)
+        dock.layer.cornerRadius = 18
         dock.layer.cornerCurve = .continuous
-        dock.clipsToBounds = true
         dock.layer.borderWidth = 1
-        dock.layer.borderColor = UIColor.white.withAlphaComponent(0.10).cgColor
+        dock.layer.borderColor = UIColor.white.withAlphaComponent(0.08).cgColor
 
-        let library = makeDockButton(icon: "square.grid.2x2.fill", title: "Library", selected: true)
+        let library = makeDockButton(
+            icon: "square.grid.2x2.fill",
+            title: L10n.Home.libraryTab.localized,
+            selected: true
+        )
         library.addTarget(self, action: #selector(showSavedRooms), for: .touchUpInside)
         library.accessibilityIdentifier = "home.savedRooms"
 
         scanButton.translatesAutoresizingMaskIntoConstraints = false
-        scanButton.backgroundColor = SpatialSenseTheme.Color.primary
-        scanButton.tintColor = .white
-        scanButton.setImage(UIImage(systemName: "plus"), for: .normal)
-        scanButton.setPreferredSymbolConfiguration(
-            UIImage.SymbolConfiguration(pointSize: 25, weight: .semibold),
-            forImageIn: .normal
-        )
-        scanButton.layer.cornerRadius = 31
-        scanButton.layer.cornerCurve = .continuous
+        var scanConfig = UIButton.Configuration.filled()
+        scanConfig.title = L10n.Home.NewScan.title.localized
+        scanConfig.image = UIImage(systemName: "plus")
+        scanConfig.imagePadding = 8
+        scanConfig.baseBackgroundColor = SpatialSenseTheme.Color.primary
+        scanConfig.baseForegroundColor = .white
+        scanConfig.cornerStyle = .capsule
+        scanConfig.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 18, bottom: 12, trailing: 18)
+        scanConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = SpatialSenseTheme.Font.semibold(15)
+            return outgoing
+        }
+        scanButton.configuration = scanConfig
         scanButton.accessibilityIdentifier = "home.newScan.floating"
         scanButton.accessibilityLabel = L10n.Home.NewScan.title.localized
         scanButton.addTarget(self, action: #selector(startScan), for: .touchUpInside)
 
-        let settings = makeDockButton(icon: "gearshape.fill", title: L10n.Settings.title.localized, selected: false)
+        let settings = makeDockButton(
+            icon: "gearshape.fill",
+            title: L10n.Settings.title.localized,
+            selected: false
+        )
         settings.addTarget(self, action: #selector(showSettings), for: .touchUpInside)
 
         let row = UIStackView(arrangedSubviews: [library, scanButton, settings])
@@ -342,15 +236,14 @@ final class CaptureLibraryViewController: UIViewController {
         row.axis = .horizontal
         row.alignment = .center
         row.distribution = .equalCentering
-        dock.contentView.addSubview(row)
+        dock.addSubview(row)
 
         NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: dock.contentView.leadingAnchor, constant: 24),
-            row.trailingAnchor.constraint(equalTo: dock.contentView.trailingAnchor, constant: -24),
-            row.topAnchor.constraint(equalTo: dock.contentView.topAnchor, constant: 8),
-            row.bottomAnchor.constraint(equalTo: dock.contentView.bottomAnchor, constant: -7),
-            scanButton.widthAnchor.constraint(equalToConstant: 62),
-            scanButton.heightAnchor.constraint(equalToConstant: 62)
+            row.leadingAnchor.constraint(equalTo: dock.leadingAnchor, constant: 16),
+            row.trailingAnchor.constraint(equalTo: dock.trailingAnchor, constant: -16),
+            row.topAnchor.constraint(equalTo: dock.topAnchor, constant: 10),
+            row.bottomAnchor.constraint(equalTo: dock.bottomAnchor, constant: -10),
+            scanButton.heightAnchor.constraint(equalToConstant: 44)
         ])
 
         return dock
@@ -401,9 +294,14 @@ final class CaptureLibraryViewController: UIViewController {
             savedPointClouds.map(LibraryCaptureItem.pointCloud)
         ).sorted { $0.date > $1.date }
 
-        countLabel.text = captures.isEmpty
-            ? "Your LiDAR captures will appear here"
-            : "\(captures.count) \(captures.count == 1 ? "capture" : "captures")"
+        if captures.isEmpty {
+            countLabel.text = L10n.Home.capturesEmptyHint.localized
+        } else {
+            let noun = captures.count == 1
+                ? L10n.Home.capturesCountOne.localized
+                : L10n.Home.capturesCountMany.localized
+            countLabel.text = String(format: L10n.Home.capturesCount.localized, captures.count, noun)
+        }
 
         capturesStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         emptyState.isHidden = !captures.isEmpty
@@ -449,7 +347,7 @@ final class CaptureLibraryViewController: UIViewController {
 
     private func makeCard(for room: SavedRoom) -> ScanCardView {
         let card = ScanCardView()
-        card.configure(with: room, statusText: L10n.Home.ScanStatus.ready.localized)
+        card.configure(with: room)
         card.onTap = { [weak self] in self?.openRoom(room) }
         card.onOverflow = { [weak self] in self?.showRoomActions(for: room) }
         return card
@@ -457,18 +355,19 @@ final class CaptureLibraryViewController: UIViewController {
 
     private func checkDeviceCapability() {
         scanButton.accessibilityValue = RoomCaptureSession.isSupported
-            ? "Room model and point cloud available"
+            ? "Room scan and point cloud available"
             : "Scanning is unavailable on this device"
     }
 
     @objc private func startScan() {
+        // No title/message eyebrows. Actions speak for themselves.
         let sheet = UIAlertController(
-            title: "New Scan",
-            message: "Choose the spatial output that fits your work.",
+            title: nil,
+            message: nil,
             preferredStyle: .actionSheet
         )
         let roomAction = UIAlertAction(
-            title: "Room model — walls, openings, 2D plan",
+            title: L10n.Scan.Sheet.room.localized,
             style: .default
         ) { [weak self] _ in
             self?.presentRoomScan()
@@ -479,7 +378,7 @@ final class CaptureLibraryViewController: UIViewController {
 
         let pointCloudSupported = ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification)
         let pointCloudAction = UIAlertAction(
-            title: "Point cloud — mesh vertices, PCD export",
+            title: L10n.Scan.Sheet.pointCloud.localized,
             style: .default
         ) { [weak self] _ in
             self?.presentPointCloudScan()
@@ -490,7 +389,7 @@ final class CaptureLibraryViewController: UIViewController {
 
         if !RoomCaptureSession.isSupported || !pointCloudSupported {
             let unavailable = UIAlertAction(
-                title: "Some scan modes require a LiDAR-equipped device",
+                title: L10n.Scan.Sheet.lidarRequired.localized,
                 style: .default
             )
             unavailable.isEnabled = false
@@ -557,6 +456,9 @@ final class CaptureLibraryViewController: UIViewController {
         sheet.addAction(UIAlertAction(title: L10n.FloorPlan.view.localized, style: .default) { [weak self] _ in
             self?.openRoom(room)
         })
+        sheet.addAction(UIAlertAction(title: L10n.Common.edit.localized, style: .default) { [weak self] _ in
+            self?.renameRoom(room)
+        })
         sheet.addAction(UIAlertAction(title: L10n.Home.SavedRooms.title.localized, style: .default) { [weak self] _ in
             self?.showSavedRooms()
         })
@@ -569,6 +471,32 @@ final class CaptureLibraryViewController: UIViewController {
             height: 1
         )
         present(sheet, animated: true)
+    }
+
+    private func renameRoom(_ room: SavedRoom) {
+        let alert = UIAlertController(title: L10n.Common.edit.localized, message: nil, preferredStyle: .alert)
+        alert.addTextField { field in
+            field.text = room.name
+            field.placeholder = L10n.SavedRooms.roomNamePlaceholder.localized
+            field.clearButtonMode = .whileEditing
+            field.autocapitalizationType = .words
+        }
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.save.localized, style: .default) { [weak self, weak alert] _ in
+            guard let self,
+                  let typed = alert?.textFields?.first?.text?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !typed.isEmpty else { return }
+            var updated = room
+            updated.name = typed
+            do {
+                try RoomStorageManager.shared.updateRoom(updated)
+                self.reloadCaptures()
+            } catch {
+                // Keep quiet; library still shows previous name.
+            }
+        })
+        present(alert, animated: true)
     }
 
     private func sharePointCloud(_ pointCloud: SavedPointCloud) {
@@ -594,6 +522,9 @@ final class CaptureLibraryViewController: UIViewController {
 
     private func showPointCloudActions(for pointCloud: SavedPointCloud) {
         let sheet = UIAlertController(title: pointCloud.name, message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: L10n.Common.edit.localized, style: .default) { [weak self] _ in
+            self?.renamePointCloud(pointCloud)
+        })
         sheet.addAction(UIAlertAction(title: "Share PCD", style: .default) { [weak self] _ in
             self?.sharePointCloud(pointCloud)
         })
@@ -610,6 +541,32 @@ final class CaptureLibraryViewController: UIViewController {
             height: 1
         )
         present(sheet, animated: true)
+    }
+
+    private func renamePointCloud(_ pointCloud: SavedPointCloud) {
+        let alert = UIAlertController(title: L10n.Common.edit.localized, message: nil, preferredStyle: .alert)
+        alert.addTextField { field in
+            field.text = pointCloud.name
+            field.placeholder = "Point cloud name"
+            field.clearButtonMode = .whileEditing
+            field.autocapitalizationType = .words
+        }
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.save.localized, style: .default) { [weak self, weak alert] _ in
+            guard let self,
+                  let typed = alert?.textFields?.first?.text?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !typed.isEmpty else { return }
+            var updated = pointCloud
+            updated.name = typed
+            do {
+                try PointCloudStorageManager.shared.update(updated)
+                self.reloadCaptures()
+            } catch {
+                // Keep quiet; library still shows previous name.
+            }
+        })
+        present(alert, animated: true)
     }
 
 }

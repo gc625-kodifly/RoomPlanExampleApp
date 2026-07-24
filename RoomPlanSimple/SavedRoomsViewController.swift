@@ -448,7 +448,6 @@ class SavedRoomsViewController: UIViewController {
         let card = ScanCardView()
         card.configure(
             with: room,
-            statusText: L10n.Home.ScanStatus.local.localized,
             showsOverflow: !isSelectMode
         )
         card.setSelectedStyle(selectedCaptureIDs.contains(room.id))

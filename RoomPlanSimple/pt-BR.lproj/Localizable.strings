@@ -140,7 +140,7 @@
 "export.dxf" = "DXF (Planta CAD)";
 "export.svg" = "SVG (Planta Vetorial)";
 "export.ifc" = "IFC (Modelo BIM)";
-"export.formatDesc.ifc" = "Industry Foundation Classes — padrão aberto BIM";
+"export.formatDesc.ifc" = "Industry Foundation Classes - padrão aberto BIM";
 "export.png" = "PNG (Imagem da Planta)";
 "export.chooseExport" = "Escolher exportação";
 "export.floorPlanImage" = "Imagem da planta baixa";

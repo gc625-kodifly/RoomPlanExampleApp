@@ -143,15 +143,14 @@ class RoomViewerViewController: UIViewController {
         ]
 
         modeButtons = modes.enumerated().map { index, mode in
-            var configuration = UIButton.Configuration.gray()
+            var configuration = UIButton.Configuration.plain()
             configuration.title = mode.0
             configuration.image = UIImage(systemName: mode.1)
             configuration.imagePadding = 6
-            configuration.cornerStyle = .capsule
             configuration.contentInsets = NSDirectionalEdgeInsets(
-                top: 8,
+                top: 10,
                 leading: 12,
-                bottom: 8,
+                bottom: 10,
                 trailing: 12
             )
             configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
@@ -173,12 +172,10 @@ class RoomViewerViewController: UIViewController {
     private func updateModeButtonStyles() {
         for (index, button) in modeButtons.enumerated() {
             let selected = index == selectedModeIndex
-            button.configuration?.baseBackgroundColor = selected
-                ? SpatialSenseTheme.Color.primary
-                : SpatialSenseTheme.Color.studioSurfaceRaised
             button.configuration?.baseForegroundColor = selected
-                ? .white
-                : UIColor.white.withAlphaComponent(0.72)
+                ? SpatialSenseTheme.Color.primary
+                : UIColor.white.withAlphaComponent(0.55)
+            button.configuration?.background.backgroundColor = .clear
             button.accessibilityTraits = selected ? [.button, .selected] : .button
         }
     }
@@ -223,25 +220,8 @@ class RoomViewerViewController: UIViewController {
         let floorPlanView = FloorPlanView(frame: containerView.bounds)
         floorPlanView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         floorPlanView.configure(with: floorPlanData)
-        floorPlanView.backgroundColor = FloorPlanConfig.backgroundColor
+        floorPlanView.backgroundColor = FloorPlanStyle.paper
         containerView.addSubview(floorPlanView)
-
-        let hintLabel = UILabel()
-        hintLabel.text = L10n.Viewer.floorPlanHint.localized
-        hintLabel.font = SpatialSenseTheme.Font.caption
-        hintLabel.adjustsFontForContentSizeCategory = true
-        hintLabel.numberOfLines = 0
-        hintLabel.textColor = SpatialSenseTheme.Color.textOnInverse.withAlphaComponent(0.7)
-        hintLabel.textAlignment = .center
-        hintLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
-        hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        floorPlanView.addSubview(hintLabel)
-
-        NSLayoutConstraint.activate([
-            hintLabel.bottomAnchor.constraint(equalTo: floorPlanView.safeAreaLayoutGuide.bottomAnchor, constant: -16),
-            hintLabel.centerXAnchor.constraint(equalTo: floorPlanView.centerXAnchor),
-            hintLabel.widthAnchor.constraint(lessThanOrEqualTo: floorPlanView.widthAnchor, constant: -32)
-        ])
     }
 
     private func show3DModel() {
@@ -659,27 +639,29 @@ private class PhotoViewerViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .black
 
-        // Scroll view for zooming
         scrollView.delegate = self
         scrollView.minimumZoomScale = 1.0
         scrollView.maximumZoomScale = 4.0
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scrollView)
 
-        // Image view
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(imageView)
 
-        // Close button
-        closeButton.setTitle("✕", for: .normal)
-        closeButton.setTitleColor(SpatialSenseTheme.Color.textOnInverse, for: .normal)
-        closeButton.titleLabel?.font = SpatialSenseTheme.Font.semibold(24)
+        // Dark chip so the control stays readable on light floor plans and bright photos.
+        closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+        closeButton.tintColor = .white
+        closeButton.backgroundColor = UIColor.black.withAlphaComponent(0.72)
+        closeButton.layer.cornerRadius = 22
+        closeButton.layer.cornerCurve = .continuous
+        closeButton.layer.borderWidth = 1
+        closeButton.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        closeButton.accessibilityLabel = L10n.Common.close.localized
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(closeButton)
 
-        // Page label
         pageLabel.textColor = SpatialSenseTheme.Color.textOnInverse
         pageLabel.textAlignment = .center
         pageLabel.font = SpatialSenseTheme.Font.caption
@@ -699,8 +681,8 @@ private class PhotoViewerViewController: UIViewController {
             imageView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
             imageView.heightAnchor.constraint(equalTo: scrollView.heightAnchor),
 
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             closeButton.widthAnchor.constraint(equalToConstant: 44),
             closeButton.heightAnchor.constraint(equalToConstant: 44),
 
@@ -708,7 +690,6 @@ private class PhotoViewerViewController: UIViewController {
             pageLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
 
-        // Add swipe gestures
         let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
         swipeLeft.direction = .left
         view.addGestureRecognizer(swipeLeft)

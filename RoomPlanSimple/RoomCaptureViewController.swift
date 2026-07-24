@@ -163,7 +163,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
 
         bottomDoneButton.translatesAutoresizingMaskIntoConstraints = false
         bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
-            title: "Finish scan",
+            title: "Finish",
             systemName: "checkmark"
         )
         bottomDoneButton.accessibilityIdentifier = "roomScan.finish"
@@ -172,7 +172,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         bottomDoneButton.addTarget(self, action: #selector(doneScanning(_:)), for: .touchUpInside)
 
         moreButton.translatesAutoresizingMaskIntoConstraints = false
-        moreButton.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        moreButton.setImage(UIImage(systemName: "square.and.arrow.up"), for: .normal)
         moreButton.tintColor = .white
         moreButton.backgroundColor = SpatialSenseTheme.Color.overlayStrong
         moreButton.layer.cornerRadius = 24
@@ -181,46 +181,37 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         moreButton.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
         moreButton.showsMenuAsPrimaryAction = true
         moreButton.accessibilityIdentifier = "roomScan.more"
-        moreButton.accessibilityLabel = "More scan actions"
+        moreButton.accessibilityLabel = "Share or export"
+        moreButton.isHidden = true
 
         exportButton?.removeFromSuperview()
 
-        let leadingControls = UIStackView(arrangedSubviews: [bottomCancelButton, photoButton])
-        leadingControls.translatesAutoresizingMaskIntoConstraints = false
-        leadingControls.axis = .horizontal
-        leadingControls.alignment = .center
-        leadingControls.spacing = 12
-        view.addSubview(leadingControls)
-
-        let trailingControls = UIStackView(arrangedSubviews: [moreButton, bottomDoneButton])
-        trailingControls.translatesAutoresizingMaskIntoConstraints = false
-        trailingControls.axis = .vertical
-        trailingControls.alignment = .trailing
-        trailingControls.spacing = 12
-        view.addSubview(leadingControls)
-        view.addSubview(trailingControls)
+        // Top: dismiss only. Bottom: photo + primary action. No dead ellipsis.
+        view.addSubview(bottomCancelButton)
+        view.addSubview(photoButton)
+        view.addSubview(moreButton)
+        view.addSubview(bottomDoneButton)
 
         NSLayoutConstraint.activate([
-            leadingControls.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            leadingControls.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-
+            bottomCancelButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            bottomCancelButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             bottomCancelButton.widthAnchor.constraint(equalToConstant: 48),
             bottomCancelButton.heightAnchor.constraint(equalToConstant: 48),
-            photoButton.widthAnchor.constraint(equalToConstant: 48),
-            photoButton.heightAnchor.constraint(equalToConstant: 48),
 
-            trailingControls.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-            trailingControls.bottomAnchor.constraint(
-                lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor,
-                constant: -24
-            ),
-            trailingControls.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
-            trailingControls.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 88),
+            photoButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            photoButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            photoButton.widthAnchor.constraint(equalToConstant: 56),
+            photoButton.heightAnchor.constraint(equalToConstant: 56),
 
+            bottomDoneButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            bottomDoneButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            bottomDoneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            bottomDoneButton.heightAnchor.constraint(equalToConstant: 56),
+
+            moreButton.trailingAnchor.constraint(equalTo: bottomDoneButton.leadingAnchor, constant: -12),
+            moreButton.centerYAnchor.constraint(equalTo: bottomDoneButton.centerYAnchor),
             moreButton.widthAnchor.constraint(equalToConstant: 48),
-            moreButton.heightAnchor.constraint(equalToConstant: 48),
-            bottomDoneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 132),
-            bottomDoneButton.heightAnchor.constraint(equalToConstant: 48)
+            moreButton.heightAnchor.constraint(equalToConstant: 48)
         ])
         updateMoreMenu()
         applyScanState()
@@ -231,7 +222,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         photoButton.setImage(UIImage(systemName: "camera.fill"), for: .normal)
         photoButton.tintColor = .white
         photoButton.backgroundColor = SpatialSenseTheme.Color.overlayStrong
-        photoButton.layer.cornerRadius = 24
+        photoButton.layer.cornerRadius = 28
         photoButton.layer.cornerCurve = .continuous
         photoButton.layer.borderWidth = 1
         photoButton.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
@@ -447,7 +438,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         } else if isProcessingScan {
             return
         } else if savedRoom == nil, let results = finalResults {
-            performAutoSave(results)
+            saveRoom(results)
         } else {
             cancelScanning(sender)
         }
@@ -555,8 +546,35 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             showSaveSuccess(savedRoom)
             return
         }
+        let suggested = RoomStorageManager.suggestedName(for: room)
+        let alert = UIAlertController(
+            title: "Name Scan",
+            message: "Name this scan before saving.",
+            preferredStyle: .alert
+        )
+        alert.addTextField { field in
+            field.text = suggested
+            field.placeholder = L10n.SavedRooms.roomNamePlaceholder.localized
+            field.clearButtonMode = .whileEditing
+            field.autocapitalizationType = .words
+        }
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.save.localized, style: .default) { [weak self, weak alert] _ in
+            let typed = alert?.textFields?.first?.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = (typed?.isEmpty == false) ? typed! : suggested
+            self?.commitRoomSave(room, name: name)
+        })
+        present(alert, animated: true)
+    }
+
+    private func commitRoomSave(_ room: CapturedRoom, name: String) {
         do {
-            let savedRoom = try RoomStorageManager.shared.saveRoom(room, photoManager: photoCaptureManager)
+            let savedRoom = try RoomStorageManager.shared.saveRoom(
+                room,
+                name: name,
+                photoManager: photoCaptureManager
+            )
             scanState = .saved(room, savedRoom)
             showSaveSuccess(savedRoom)
             HapticFeedbackManager.shared.scanComplete()
@@ -613,9 +631,7 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
         guard isViewLoaded else { return }
         var actions: [UIMenuElement] = []
 
-        if isScanning {
-            // Photo capture uses the dedicated camera button in the scan chrome.
-        } else if finalResults != nil {
+        if finalResults != nil {
             actions.append(UIAction(
                 title: "Share or export",
                 image: UIImage(systemName: "square.and.arrow.up")
@@ -625,8 +641,9 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             })
         }
 
-        moreButton.menu = UIMenu(title: "Scan actions", children: actions)
-        moreButton.accessibilityValue = actions.isEmpty ? "Unavailable" : nil
+        moreButton.menu = UIMenu(children: actions)
+        moreButton.isHidden = actions.isEmpty
+        moreButton.accessibilityValue = actions.isEmpty ? nil : "Available"
     }
 
     private func applyScanState() {
@@ -637,25 +654,23 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             bottomCancelButton.isEnabled = true
             bottomDoneButton.isEnabled = true
             bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
-                title: "Finish scan",
+                title: "Finish",
                 systemName: "checkmark"
             )
             bottomDoneButton.accessibilityLabel = "Finish room scan"
             bottomDoneButton.accessibilityHint = "Stops capture and processes the room model."
             photoButton.isHidden = false
-            moreButton.isHidden = false
             hideStatusLabel()
 
         case .processing:
             bottomCancelButton.isEnabled = false
             bottomDoneButton.isEnabled = false
             bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
-                title: "Processing…",
+                title: "Processing",
                 systemName: "hourglass"
             )
             bottomDoneButton.accessibilityLabel = "Processing room scan"
             photoButton.isHidden = true
-            moreButton.isHidden = true
             updateStatusLabel("Processing room model")
             UIAccessibility.post(notification: .announcement, argument: "Processing room model")
 
@@ -663,13 +678,12 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             bottomCancelButton.isEnabled = true
             bottomDoneButton.isEnabled = true
             bottomDoneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
-                title: "Save & close",
+                title: "Save",
                 systemName: "checkmark"
             )
             bottomDoneButton.accessibilityLabel = "Save room and close"
             bottomDoneButton.accessibilityHint = "Saves this room to the capture library."
             photoButton.isHidden = true
-            moreButton.isHidden = false
             hideStatusLabel()
             UIAccessibility.post(notification: .announcement, argument: "Room model ready to save")
 
@@ -682,7 +696,6 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             )
             bottomDoneButton.accessibilityLabel = "Close saved room"
             photoButton.isHidden = true
-            moreButton.isHidden = false
             hideStatusLabel()
             UIAccessibility.post(notification: .announcement, argument: "Room saved")
 
@@ -690,7 +703,6 @@ class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, Room
             bottomCancelButton.isEnabled = true
             bottomDoneButton.isEnabled = false
             photoButton.isHidden = true
-            moreButton.isHidden = true
             updateStatusLabel(message, isError: true)
             UIAccessibility.post(notification: .announcement, argument: message)
         }

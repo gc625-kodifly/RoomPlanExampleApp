@@ -85,7 +85,7 @@ final class PointCloudViewerViewController: UIViewController {
         statusLabel.backgroundColor = SpatialSenseTheme.Color.overlayStrong
         statusLabel.layer.cornerRadius = 15
         statusLabel.clipsToBounds = true
-        statusLabel.text = "  Loading capture…  "
+        statusLabel.text = "  Loading capture...  "
         view.addSubview(statusLabel)
 
         loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
@@ -156,7 +156,6 @@ final class PointCloudViewerViewController: UIViewController {
         points: [PointCloudExporter.ColoredPoint],
         mesh: PointCloudExporter.ColoredMesh?
     ) {
-        pointNode.geometry = Self.makePointGeometry(points)
         if let mesh, !mesh.faces.isEmpty {
             meshNode.geometry = Self.makeMeshGeometry(mesh)
             modeControl.setEnabled(true, forSegmentAt: 0)
@@ -164,6 +163,8 @@ final class PointCloudViewerViewController: UIViewController {
             modeControl.selectedSegmentIndex = 1
             modeControl.setEnabled(false, forSegmentAt: 0)
         }
+
+        pointNode.geometry = Self.makePointGeometry(points)
 
         let framingPoints = mesh?.vertices ?? points
         centerGeometry(using: framingPoints)
@@ -173,7 +174,7 @@ final class PointCloudViewerViewController: UIViewController {
         resetCamera()
     }
 
-    private static func makePointGeometry(
+    static func makePointGeometry(
         _ points: [PointCloudExporter.ColoredPoint]
     ) -> SCNGeometry {
         let sources = geometrySources(points)
@@ -194,7 +195,7 @@ final class PointCloudViewerViewController: UIViewController {
         return geometry
     }
 
-    private static func makeMeshGeometry(
+    static func makeMeshGeometry(
         _ mesh: PointCloudExporter.ColoredMesh
     ) -> SCNGeometry {
         let indices = mesh.faces.flatMap { [$0.x, $0.y, $0.z] }

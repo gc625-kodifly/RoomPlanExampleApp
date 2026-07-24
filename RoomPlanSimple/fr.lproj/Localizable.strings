@@ -140,7 +140,7 @@
 "export.dxf" = "DXF (Plan CAO)";
 "export.svg" = "SVG (Plan Vectoriel)";
 "export.ifc" = "IFC (Modèle BIM)";
-"export.formatDesc.ifc" = "Industry Foundation Classes — standard BIM ouvert";
+"export.formatDesc.ifc" = "Industry Foundation Classes - standard BIM ouvert";
 "export.png" = "PNG (Image du Plan)";
 "export.chooseExport" = "Choisir l'export";
 "export.floorPlanImage" = "Image du plan d'étage";

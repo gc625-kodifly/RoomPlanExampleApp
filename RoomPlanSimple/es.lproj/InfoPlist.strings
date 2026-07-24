@@ -7,5 +7,5 @@
 
 "NSCameraUsageDescription" = "El acceso a la cámara y LiDAR crea modelos de habitaciones. Las fotos de evidencia que decidas tomar se guardan con la habitación hasta que las elimines o exportes.";
 
-"CFBundleDisplayName" = "RoomPlan";
-"CFBundleName" = "RoomPlanSimple";
+"CFBundleDisplayName" = "SpatialSense";
+"CFBundleName" = "SpatialSense";

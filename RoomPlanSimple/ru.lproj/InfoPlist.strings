@@ -5,5 +5,5 @@
 
 "NSCameraUsageDescription" = "Доступ к камере и LiDAR используется для создания моделей комнат. Сделанные вами фотографии сохраняются вместе с комнатой до удаления или экспорта.";
 
-"CFBundleDisplayName" = "RoomPlan";
-"CFBundleName" = "RoomPlan";
+"CFBundleDisplayName" = "SpatialSense";
+"CFBundleName" = "SpatialSense";

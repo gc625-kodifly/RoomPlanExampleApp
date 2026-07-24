@@ -38,6 +38,18 @@
 "home.features" = "Features";
 "home.scanStatus.ready" = "Ready";
 "home.scanStatus.local" = "Saved locally";
+"home.libraryTab" = "Library";
+"home.capturesEmptyHint" = "Tap + to capture a room or point cloud.";
+"home.capturesCount" = "%d %@";
+"home.capturesCount.one" = "capture";
+"home.capturesCount.many" = "captures";
+
+// MARK: - New scan sheet
+"scan.sheet.title" = "New scan";
+"scan.sheet.message" = "Choose a capture type.";
+"scan.sheet.room" = "Room scan";
+"scan.sheet.pointCloud" = "Point cloud";
+"scan.sheet.lidarRequired" = "LiDAR required for some modes";
 
 // MARK: - Features List
 "feature.3dCapture.title" = "3D Room Capture";
@@ -154,7 +166,7 @@
 "export.dxf" = "DXF (CAD Floor Plan)";
 "export.svg" = "SVG (Vector Floor Plan)";
 "export.ifc" = "IFC (BIM Model)";
-"export.formatDesc.ifc" = "Industry Foundation Classes — open BIM standard";
+"export.formatDesc.ifc" = "Industry Foundation Classes - open BIM standard";
 "export.png" = "PNG (Floor Plan Image)";
 "export.complete" = "Complete Export (All Data)";
 "export.processing" = "Exporting...";

@@ -2,7 +2,7 @@
 See LICENSE folder for this sample's licensing information.
 
 Abstract:
-Provides a live ARKit point-cloud capture experience backed by scene reconstruction.
+ARKit point-cloud capture with room-mode chrome parity and post-scan 3D review.
 */
 
 import UIKit
@@ -12,28 +12,52 @@ import SceneKit
 @MainActor
 final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate {
 
+    private enum ScanState {
+        case scanning
+        case processing
+        case review(PointCloudExporter.ExportResult)
+        case saved(SavedPointCloud)
+    }
+
     private let sceneView = ARSCNView(frame: .zero)
-    private let statusLabel = UILabel()
-    private let instructionLabel = UILabel()
-    private let pauseButton = UIButton(type: .system)
+    /// Dedicated SceneKit view for post-scan review (ARSCNView keeps showing the camera feed when paused).
+    private let reviewView = SCNView(frame: .zero)
+    private let statusLabel = CaptureChrome.statusLabel()
+    private let closeButton = CaptureChrome.circleButton(systemName: "xmark")
+    private let pauseButton = CaptureChrome.circleButton(
+        systemName: "pause.fill",
+        diameter: CaptureChrome.controlSize
+    )
     private let doneButton = UIButton(type: .system)
     private let configuration = ARWorldTrackingConfiguration()
     private let colorSampler = PointCloudColorSampler()
 
+    private let reviewRoot = SCNNode()
+    private let meshNode = SCNNode()
+    private let pointNode = SCNNode()
+    private let reviewCameraNode = SCNNode()
+
     private var vertexCounts: [UUID: Int] = [:]
     private var colorSamplingTimer: Timer?
     private var isPaused = false
-    private var isFinishing = false
+    private var pendingResult: PointCloudExporter.ExportResult?
+    private var reviewHasColor = false
+    private var scanState: ScanState = .scanning {
+        didSet { applyScanState() }
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setupScene()
         setupOverlay()
+        applyScanState()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        startSession(reset: true)
+        if case .scanning = scanState {
+            startSession(reset: true)
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -49,15 +73,41 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         sceneView.translatesAutoresizingMaskIntoConstraints = false
         sceneView.delegate = self
         sceneView.scene = SCNScene()
-        sceneView.automaticallyUpdatesLighting = false
+        sceneView.automaticallyUpdatesLighting = true
         sceneView.preferredFramesPerSecond = 60
+        sceneView.allowsCameraControl = false
         view.addSubview(sceneView)
+
+        reviewView.translatesAutoresizingMaskIntoConstraints = false
+        reviewView.backgroundColor = UIColor(white: 0.07, alpha: 1)
+        reviewView.autoenablesDefaultLighting = true
+        reviewView.allowsCameraControl = true
+        reviewView.antialiasingMode = .multisampling4X
+        reviewView.isHidden = true
+        let reviewScene = SCNScene()
+        reviewScene.background.contents = UIColor(white: 0.07, alpha: 1)
+        reviewView.scene = reviewScene
+        reviewCameraNode.camera = SCNCamera()
+        reviewCameraNode.camera?.fieldOfView = 50
+        reviewCameraNode.camera?.zNear = 0.01
+        reviewCameraNode.camera?.zFar = 80
+        reviewScene.rootNode.addChildNode(reviewCameraNode)
+        reviewScene.rootNode.addChildNode(reviewRoot)
+        reviewRoot.addChildNode(meshNode)
+        reviewRoot.addChildNode(pointNode)
+        reviewView.pointOfView = reviewCameraNode
+        view.addSubview(reviewView)
 
         NSLayoutConstraint.activate([
             sceneView.topAnchor.constraint(equalTo: view.topAnchor),
             sceneView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             sceneView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            sceneView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            sceneView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            reviewView.topAnchor.constraint(equalTo: view.topAnchor),
+            reviewView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            reviewView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            reviewView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
         configuration.sceneReconstruction = .meshWithClassification
@@ -67,106 +117,97 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
     }
 
     private func setupOverlay() {
-        let closeButton = makeCircleButton(systemName: "xmark", diameter: 44)
         closeButton.addTarget(self, action: #selector(cancelCapture), for: .touchUpInside)
+        closeButton.accessibilityLabel = "Close point cloud scan"
 
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.text = "  Building point cloud…  "
-        statusLabel.font = SpatialSenseTheme.Font.semibold(13)
-        statusLabel.textColor = .white
-        statusLabel.backgroundColor = UIColor.black.withAlphaComponent(0.72)
-        statusLabel.layer.cornerRadius = 18
-        statusLabel.clipsToBounds = true
-        statusLabel.textAlignment = .center
-
-        instructionLabel.translatesAutoresizingMaskIntoConstraints = false
-        instructionLabel.text = "Move slowly and cover every visible surface"
-        instructionLabel.font = SpatialSenseTheme.Font.medium(13)
-        instructionLabel.textColor = .white
-        instructionLabel.backgroundColor = UIColor.black.withAlphaComponent(0.68)
-        instructionLabel.layer.cornerRadius = 16
-        instructionLabel.clipsToBounds = true
-        instructionLabel.textAlignment = .center
-        instructionLabel.numberOfLines = 2
-
-        configurePauseButton()
-        configureDoneButton()
-
-        view.addSubview(closeButton)
-        view.addSubview(statusLabel)
-        view.addSubview(instructionLabel)
-        let trailingControls = UIStackView(arrangedSubviews: [pauseButton, doneButton])
-        trailingControls.translatesAutoresizingMaskIntoConstraints = false
-        trailingControls.axis = .vertical
-        trailingControls.alignment = .trailing
-        trailingControls.spacing = 12
-        view.addSubview(trailingControls)
-
-        NSLayoutConstraint.activate([
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-
-            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 18),
-            statusLabel.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 12),
-            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-            statusLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 36),
-
-            instructionLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            instructionLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 12),
-            instructionLabel.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -48),
-            instructionLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 34),
-
-            trailingControls.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-            trailingControls.bottomAnchor.constraint(
-                lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor,
-                constant: -24
-            ),
-            trailingControls.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
-            pauseButton.widthAnchor.constraint(equalToConstant: 48),
-            pauseButton.heightAnchor.constraint(equalToConstant: 48),
-            doneButton.heightAnchor.constraint(equalToConstant: 48),
-            doneButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 132)
-        ])
-    }
-
-    private func makeCircleButton(systemName: String, diameter: CGFloat) -> UIButton {
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: systemName), for: .normal)
-        button.tintColor = .white
-        button.backgroundColor = UIColor.black.withAlphaComponent(0.7)
-        button.layer.cornerRadius = diameter / 2
-        button.layer.borderWidth = 1
-        button.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
-        button.widthAnchor.constraint(equalToConstant: diameter).isActive = true
-        button.heightAnchor.constraint(equalToConstant: diameter).isActive = true
-        return button
-    }
-
-    private func configurePauseButton() {
-        pauseButton.translatesAutoresizingMaskIntoConstraints = false
-        pauseButton.setImage(UIImage(systemName: "pause.fill"), for: .normal)
-        pauseButton.tintColor = .white
-        pauseButton.backgroundColor = UIColor.white.withAlphaComponent(0.12)
-        pauseButton.layer.cornerRadius = 24
-        pauseButton.layer.cornerCurve = .continuous
-        pauseButton.layer.borderWidth = 1
-        pauseButton.layer.borderColor = UIColor.white.withAlphaComponent(0.45).cgColor
         pauseButton.addTarget(self, action: #selector(togglePause), for: .touchUpInside)
         pauseButton.accessibilityIdentifier = "pointCloud.pause"
         pauseButton.accessibilityLabel = "Pause scan"
-    }
 
-    private func configureDoneButton() {
         doneButton.translatesAutoresizingMaskIntoConstraints = false
         doneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
-            title: "Finish scan",
+            title: "Finish",
             systemName: "checkmark"
         )
         doneButton.accessibilityIdentifier = "pointCloud.finish"
-        doneButton.accessibilityLabel = "Finish point cloud scan"
-        doneButton.accessibilityHint = "Stops capture and saves the point cloud."
-        doneButton.addTarget(self, action: #selector(finishCapture), for: .touchUpInside)
+        doneButton.addTarget(self, action: #selector(primaryAction), for: .touchUpInside)
+
+        view.addSubview(closeButton)
+        view.addSubview(statusLabel)
+        view.addSubview(pauseButton)
+        view.addSubview(doneButton)
+
+        CaptureChrome.pin(close: closeButton, secondary: pauseButton, primary: doneButton, in: view)
+
+        NSLayoutConstraint.activate([
+            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 18),
+            statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            statusLabel.leadingAnchor.constraint(greaterThanOrEqualTo: closeButton.trailingAnchor, constant: 12),
+            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            statusLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 32)
+        ])
+    }
+
+    private func applyScanState() {
+        switch scanState {
+        case .scanning:
+            pauseButton.isHidden = false
+            pauseButton.isEnabled = true
+            doneButton.isEnabled = true
+            doneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Finish",
+                systemName: "checkmark"
+            )
+            doneButton.accessibilityLabel = "Finish point cloud scan"
+            statusLabel.text = "  Building point cloud...  "
+            statusLabel.isHidden = false
+            showReviewSurface(false)
+
+        case .processing:
+            pauseButton.isHidden = true
+            doneButton.isEnabled = false
+            doneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Processing",
+                systemName: "hourglass"
+            )
+            statusLabel.text = "  Processing capture...  "
+            statusLabel.isHidden = false
+
+        case .review:
+            pauseButton.isHidden = true
+            doneButton.isEnabled = true
+            doneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Save",
+                systemName: "checkmark"
+            )
+            doneButton.accessibilityLabel = "Save point cloud"
+            statusLabel.text = "  Review capture · drag to orbit  "
+            statusLabel.isHidden = false
+            showReviewSurface(true)
+
+        case .saved(let capture):
+            pauseButton.isHidden = true
+            doneButton.isEnabled = true
+            doneButton.configuration = SpatialSenseTheme.captureActionConfiguration(
+                title: "Close",
+                systemName: "checkmark"
+            )
+            doneButton.accessibilityLabel = "Close saved point cloud"
+            statusLabel.text = "  Saved · \(capture.pointCount.formatted()) points  "
+            statusLabel.isHidden = false
+            showReviewSurface(true)
+        }
+    }
+
+    private func showReviewSurface(_ show: Bool) {
+        reviewView.isHidden = !show
+        sceneView.isHidden = show
+        if show {
+            view.bringSubviewToFront(reviewView)
+            view.bringSubviewToFront(closeButton)
+            view.bringSubviewToFront(statusLabel)
+            view.bringSubviewToFront(doneButton)
+        }
     }
 
     private func startSession(reset: Bool) {
@@ -174,8 +215,10 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         sceneView.session.run(configuration, options: options)
         isPaused = false
         pauseButton.setImage(UIImage(systemName: "pause.fill"), for: .normal)
+        pauseButton.accessibilityLabel = "Pause scan"
         if reset {
             colorSampler.reset()
+            vertexCounts.removeAll()
         }
         startColorSampling()
     }
@@ -194,6 +237,7 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
 
     private func sampleCurrentFrameColors() {
         guard !isPaused,
+              case .scanning = scanState,
               let frame = sceneView.session.currentFrame,
               let orientation = view.window?.windowScene?.interfaceOrientation else {
             return
@@ -208,10 +252,10 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
     }
 
     @objc private func togglePause() {
+        guard case .scanning = scanState else { return }
         if isPaused {
             startSession(reset: false)
-            pauseButton.accessibilityLabel = "Pause scan"
-            statusLabel.text = "  Building point cloud…  "
+            statusLabel.text = "  Building point cloud...  "
         } else {
             sceneView.session.pause()
             colorSamplingTimer?.invalidate()
@@ -228,8 +272,20 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         dismiss(animated: true)
     }
 
-    @objc private func finishCapture() {
-        guard !isFinishing else { return }
+    @objc private func primaryAction() {
+        switch scanState {
+        case .scanning:
+            finishCapture()
+        case .review:
+            saveReviewedCapture()
+        case .saved:
+            dismiss(animated: true)
+        case .processing:
+            break
+        }
+    }
+
+    private func finishCapture() {
         sampleCurrentFrameColors()
         let anchors = sceneView.session.currentFrame?.anchors.compactMap { $0 as? ARMeshAnchor } ?? []
         guard !anchors.isEmpty else {
@@ -237,53 +293,130 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
             return
         }
 
-        isFinishing = true
-        UIAccessibility.post(notification: .announcement, argument: "Saving point cloud")
-        doneButton.isEnabled = false
-        pauseButton.isEnabled = false
-        instructionLabel.text = "Saving point cloud…"
+        scanState = .processing
+        UIAccessibility.post(notification: .announcement, argument: "Processing point cloud")
         colorSamplingTimer?.invalidate()
         sceneView.session.pause()
 
-        do {
-            let capture = try PointCloudStorageManager.shared.save(
-                anchors: anchors,
-                colorsByAnchor: colorSampler.snapshot(alignedTo: anchors)
-            )
-            showSavedConfirmation(capture)
-            UIAccessibility.post(notification: .announcement, argument: "Point cloud saved")
-        } catch {
-            isFinishing = false
-            doneButton.isEnabled = true
-            pauseButton.isEnabled = true
-            instructionLabel.text = "Move slowly and cover every visible surface"
-            showError(error)
+        let colors = colorSampler.snapshot(alignedTo: anchors)
+        reviewHasColor = !colors.isEmpty
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let result = try PointCloudExporter.makeExportResult(
+                    from: anchors,
+                    colorsByAnchor: colors
+                )
+                Task { @MainActor in
+                    self?.enterReview(with: result)
+                }
+            } catch {
+                Task { @MainActor in
+                    self?.scanState = .scanning
+                    self?.startSession(reset: false)
+                    self?.showError(error)
+                }
+            }
         }
     }
 
-    private func showSavedConfirmation(_ capture: SavedPointCloud) {
+    private func enterReview(with result: PointCloudExporter.ExportResult) {
+        pendingResult = result
+        sceneView.session.pause()
+        installReviewGeometry(result)
+        scanState = .review(result)
+        UIAccessibility.post(notification: .announcement, argument: "Point cloud ready to save")
+    }
+
+    private func installReviewGeometry(_ result: PointCloudExporter.ExportResult) {
+        meshNode.geometry = nil
+        pointNode.geometry = nil
+
+        if !result.mesh.faces.isEmpty {
+            meshNode.geometry = PointCloudViewerViewController.makeMeshGeometry(result.mesh)
+            meshNode.isHidden = false
+            pointNode.isHidden = true
+        } else if !result.points.isEmpty {
+            pointNode.geometry = PointCloudViewerViewController.makePointGeometry(result.points)
+            pointNode.isHidden = false
+            meshNode.isHidden = true
+        } else {
+            meshNode.isHidden = true
+            pointNode.isHidden = true
+        }
+
+        let framing = result.mesh.vertices.isEmpty ? result.points : result.mesh.vertices
+        guard let first = framing.first else { return }
+        var minimum = first.position
+        var maximum = first.position
+        for point in framing.dropFirst() {
+            minimum = simd_min(minimum, point.position)
+            maximum = simd_max(maximum, point.position)
+        }
+        let center = (minimum + maximum) / 2
+        reviewRoot.simdPosition = -center
+
+        let extent = maximum - minimum
+        let radius = max(0.6, max(extent.x, max(extent.y, extent.z)) * 1.05)
+        reviewCameraNode.simdPosition = SIMD3(radius * 0.75, radius * 0.55, radius * 1.15)
+        reviewCameraNode.look(at: SCNVector3Zero, up: SCNVector3(0, 1, 0), localFront: SCNVector3(0, 0, -1))
+        reviewView.pointOfView = reviewCameraNode
+        reviewView.defaultCameraController.inertiaEnabled = true
+        reviewView.defaultCameraController.interactionMode = .orbitTurntable
+        reviewView.defaultCameraController.target = SCNVector3Zero
+        reviewView.defaultCameraController.maximumVerticalAngle = 85
+        reviewView.setNeedsDisplay()
+    }
+
+    private func saveReviewedCapture() {
+        guard let result = pendingResult else { return }
+        let suggested = PointCloudStorageManager.suggestedName(date: Date())
         let alert = UIAlertController(
-            title: "Point Cloud Saved",
-            message: "\(capture.pointCount.formatted()) points were saved and added to your capture library.",
+            title: "Name Point Cloud",
+            message: "Choose a name before saving.",
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "Share", style: .default) { [weak self] _ in
-            guard let url = try? PointCloudStorageManager.shared.fileURL(for: capture) else { return }
-            self?.share(url)
-        })
-        alert.addAction(UIAlertAction(title: "Done", style: .cancel) { [weak self] _ in
-            self?.dismiss(animated: true)
+        alert.addTextField { field in
+            field.text = suggested
+            field.placeholder = "Point cloud name"
+            field.clearButtonMode = .whileEditing
+            field.autocapitalizationType = .words
+        }
+        alert.addAction(UIAlertAction(title: L10n.Common.cancel.localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: L10n.Common.save.localized, style: .default) { [weak self, weak alert] _ in
+            let typed = alert?.textFields?.first?.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = (typed?.isEmpty == false) ? typed! : suggested
+            self?.commitPointCloudSave(result: result, name: name)
         })
         present(alert, animated: true)
     }
 
-    private func share(_ url: URL) {
-        let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let popover = activity.popoverPresentationController {
-            popover.sourceView = doneButton
-            popover.sourceRect = doneButton.bounds
+    private func commitPointCloudSave(result: PointCloudExporter.ExportResult, name: String) {
+        scanState = .processing
+        let preview = PointCloudPreviewRenderer.image(points: result.points, mesh: result.mesh)
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let capture = try PointCloudStorageManager.shared.save(
+                    exportResult: result,
+                    hasColor: self?.reviewHasColor ?? false,
+                    previewImage: preview,
+                    name: name
+                )
+                Task { @MainActor in
+                    self?.pendingResult = nil
+                    self?.scanState = .saved(capture)
+                    UIAccessibility.post(notification: .announcement, argument: "Point cloud saved")
+                }
+            } catch {
+                Task { @MainActor in
+                    if let result = self?.pendingResult {
+                        self?.scanState = .review(result)
+                    }
+                    self?.showError(error)
+                }
+            }
         }
-        present(activity, animated: true)
     }
 
     private func showError(_ error: Error) {
@@ -302,8 +435,9 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         for anchor: ARAnchor
     ) {
         guard let meshAnchor = anchor as? ARMeshAnchor else { return }
-        node.geometry = Self.makePointGeometry(from: meshAnchor.geometry)
+        node.geometry = Self.makeLivePointGeometry(from: meshAnchor.geometry)
         Task { @MainActor in
+            guard case .scanning = self.scanState else { return }
             self.vertexCounts[meshAnchor.identifier] = meshAnchor.geometry.vertices.count
             self.updatePointCount()
         }
@@ -315,61 +449,49 @@ final class PointCloudCaptureViewController: UIViewController, ARSCNViewDelegate
         for anchor: ARAnchor
     ) {
         guard let meshAnchor = anchor as? ARMeshAnchor else { return }
-        node.geometry = Self.makePointGeometry(from: meshAnchor.geometry)
+        node.geometry = Self.makeLivePointGeometry(from: meshAnchor.geometry)
         Task { @MainActor in
+            guard case .scanning = self.scanState else { return }
             self.vertexCounts[meshAnchor.identifier] = meshAnchor.geometry.vertices.count
             self.updatePointCount()
         }
     }
 
-    nonisolated func renderer(
-        _ renderer: any SCNSceneRenderer,
-        didRemove node: SCNNode,
-        for anchor: ARAnchor
-    ) {
-        Task { @MainActor in
-            self.vertexCounts.removeValue(forKey: anchor.identifier)
-            self.updatePointCount()
+    private func updatePointCount() {
+        let total = vertexCounts.values.reduce(0, +)
+        if case .scanning = scanState, !isPaused {
+            statusLabel.text = "  \(total.formatted()) points  "
         }
     }
 
-    nonisolated private static func makePointGeometry(from mesh: ARMeshGeometry) -> SCNGeometry {
-        let vertices = mesh.vertices
-        let source = SCNGeometrySource(
-            buffer: vertices.buffer,
-            vertexFormat: vertices.format,
-            semantic: .vertex,
-            vertexCount: vertices.count,
-            dataOffset: vertices.offset,
-            dataStride: vertices.stride
-        )
+    nonisolated private static func makeLivePointGeometry(from geometry: ARMeshGeometry) -> SCNGeometry {
+        let vertices = geometry.vertices
+        let vertexCount = vertices.count
+        let stride = vertices.stride
+        let offset = vertices.offset
+        var positions: [SCNVector3] = []
+        positions.reserveCapacity(vertexCount)
+        for index in 0..<vertexCount {
+            let pointer = vertices.buffer.contents().advanced(by: offset + index * stride)
+            let value = pointer.assumingMemoryBound(to: (Float, Float, Float).self).pointee
+            positions.append(SCNVector3(value.0, value.1, value.2))
+        }
+        let source = SCNGeometrySource(vertices: positions)
         let element = SCNGeometryElement(
             data: nil,
             primitiveType: .point,
-            primitiveCount: vertices.count,
+            primitiveCount: vertexCount,
             bytesPerIndex: 0
         )
-        element.pointSize = 0.006
-        element.minimumPointScreenSpaceRadius = 1.5
-        element.maximumPointScreenSpaceRadius = 5
-
-        let material = SCNMaterial()
-        let pointColor = UIColor(red: 1, green: 0.49, blue: 0.16, alpha: 0.95)
-        material.diffuse.contents = pointColor
-        material.emission.contents = pointColor
-        material.lightingModel = .constant
-        material.blendMode = .add
-        material.isDoubleSided = true
-
+        element.pointSize = 0.008
+        element.minimumPointScreenSpaceRadius = 1
+        element.maximumPointScreenSpaceRadius = 4
         let geometry = SCNGeometry(sources: [source], elements: [element])
+        let material = SCNMaterial()
+        material.diffuse.contents = SpatialSenseTheme.Color.primary
+        material.lightingModel = .constant
         geometry.materials = [material]
         return geometry
     }
-
-    private func updatePointCount() {
-        let count = vertexCounts.values.reduce(0, +)
-        statusLabel.text = count == 0
-            ? "  Building point cloud…  "
-            : "  \(count.formatted()) live points  "
-    }
 }
+

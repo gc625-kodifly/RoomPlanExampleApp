@@ -109,7 +109,10 @@ final class RoomStorageManager {
     func saveRoom(_ room: CapturedRoom, name: String? = nil, photoManager: PhotoCaptureManager? = nil) throws -> SavedRoom {
         let id = UUID()
         let timestamp = Date()
-        let roomName = name ?? "Room \(formatDate(timestamp))"
+        let roomName = {
+            let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? Self.suggestedName(for: room, date: timestamp) : trimmed
+        }()
         let packageURL = savedRoomsDirectory.appendingPathComponent(id.uuidString, isDirectory: true)
         let stagingURL = savedRoomsDirectory.appendingPathComponent(".\(id.uuidString).staging", isDirectory: true)
         try fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
@@ -125,7 +128,8 @@ final class RoomStorageManager {
 
         let floorPlanFileName = "\(id.uuidString)_floorplan.png"
         let floorPlanURL = stagingURL.appendingPathComponent(floorPlanFileName)
-        let floorPlanData = FloorPlanData.from(room)
+        var floorPlanData = FloorPlanData.from(room)
+        floorPlanData.roomName = roomName
         try saveFloorPlanImage(data: floorPlanData, to: floorPlanURL)
 
         let floorPlanDataFileName = "\(id.uuidString)_floorplan.json"
@@ -627,6 +631,16 @@ final class RoomStorageManager {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
         return formatter.string(from: date)
+    }
+
+    static func suggestedName(for room: CapturedRoom, date: Date = Date()) -> String {
+        let detected = RoomTypeDetector.detectRoomType(from: room).roomType
+        if detected != .unknown {
+            return detected.rawValue
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return "Room \(formatter.string(from: date))"
     }
 
     private func artifactURL(for room: SavedRoom, filename: String) -> URL {

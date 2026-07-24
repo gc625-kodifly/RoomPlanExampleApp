@@ -7,10 +7,18 @@ Renders a professional, print-style single-room floor-plan document.
 
 import UIKit
 
+enum FloorPlanRenderPresentation {
+    /// In-app viewer: plan-forward, minimal chrome.
+    case viewer
+    /// Export / print sheet with title block.
+    case document
+}
+
 struct FloorPlanRenderOptions {
     var showDimensions = true
     var showLabels = true
     var title = "SpatialSense Floor Plan"
+    var presentation: FloorPlanRenderPresentation = .document
 }
 
 enum FloorPlanDocumentRenderer {
@@ -61,14 +69,17 @@ enum FloorPlanDocumentRenderer {
         options: FloorPlanRenderOptions
     ) {
         context.saveGState()
-        context.setFillColor(UIColor.white.cgColor)
+        let paper = options.presentation == FloorPlanRenderPresentation.viewer ? FloorPlanStyle.paper : UIColor.white
+        context.setFillColor(paper.cgColor)
         context.fill(bounds)
 
-        drawHeader(data: data, bounds: bounds, context: context, title: options.title)
-        drawFooter(bounds: bounds, context: context)
+        if options.presentation == FloorPlanRenderPresentation.document {
+            drawHeader(data: data, bounds: bounds, context: context, title: options.title)
+            drawFooter(bounds: bounds, context: context)
+        }
 
-        let layout = makeLayout(data: data, bounds: bounds)
-        drawRoomFill(data: data, layout: layout, context: context)
+        let layout = makeLayout(data: data, bounds: bounds, presentation: options.presentation)
+        drawPlanGrid(in: layout.planRect, context: context)
 
         let walls = elements(data, matching: .wall)
         let openings = elements(data, matching: .opening)
@@ -79,7 +90,11 @@ enum FloorPlanDocumentRenderer {
             return false
         }
 
-        walls.forEach { drawWall($0, layout: layout, context: context) }
+        // Continuous rounded wall shell (Polycam-style). No per-segment butt caps.
+        drawWallShell(data: data, walls: walls, layout: layout, context: context)
+        openings.forEach { punchOpening($0, layout: layout, context: context) }
+        doors.forEach { punchOpening($0, layout: layout, context: context) }
+        windows.forEach { punchOpening($0, layout: layout, context: context) }
         openings.forEach { drawOpening($0, layout: layout, context: context) }
         doors.forEach { drawDoor($0, layout: layout, context: context) }
         windows.forEach { drawWindow($0, layout: layout, context: context) }
@@ -92,24 +107,44 @@ enum FloorPlanDocumentRenderer {
         }
         if options.showDimensions {
             drawWallDimensions(walls, data: data, layout: layout, context: context)
-            drawOverallDimensions(data: data, layout: layout, context: context)
+            if options.presentation == FloorPlanRenderPresentation.document {
+                drawOverallDimensions(data: data, layout: layout, context: context)
+            }
         }
-        drawOrientationMarker(bounds: bounds, context: context)
-        drawScaleBar(layout: layout, bounds: bounds, context: context)
+        if options.presentation == FloorPlanRenderPresentation.document {
+            drawOrientationMarker(bounds: bounds, context: context)
+        }
+        drawScaleBar(
+            layout: layout,
+            bounds: bounds,
+            context: context,
+            compact: options.presentation == FloorPlanRenderPresentation.viewer
+        )
         context.restoreGState()
     }
 
-    private static func makeLayout(data: FloorPlanData, bounds: CGRect) -> Layout {
-        let horizontalMargin = max(42, bounds.width * 0.075)
-        let headerHeight = max(72, bounds.height * 0.09)
-        let footerHeight = max(58, bounds.height * 0.07)
-        let annotationMargin = max(48, min(bounds.width, bounds.height) * 0.08)
-        let planRect = CGRect(
-            x: horizontalMargin + annotationMargin,
-            y: headerHeight + annotationMargin,
-            width: bounds.width - (horizontalMargin + annotationMargin) * 2,
-            height: bounds.height - headerHeight - footerHeight - annotationMargin * 2
-        )
+    private static func makeLayout(
+        data: FloorPlanData,
+        bounds: CGRect,
+        presentation: FloorPlanRenderPresentation
+    ) -> Layout {
+        let planRect: CGRect
+        let annotationMargin: CGFloat
+        if presentation == FloorPlanRenderPresentation.viewer {
+            annotationMargin = max(28, min(bounds.width, bounds.height) * 0.06)
+            planRect = bounds.insetBy(dx: annotationMargin, dy: annotationMargin)
+        } else {
+            let horizontalMargin = max(42, bounds.width * 0.075)
+            let headerHeight = max(72, bounds.height * 0.09)
+            let footerHeight = max(58, bounds.height * 0.07)
+            annotationMargin = max(48, min(bounds.width, bounds.height) * 0.08)
+            planRect = CGRect(
+                x: horizontalMargin + annotationMargin,
+                y: headerHeight + annotationMargin,
+                width: bounds.width - (horizontalMargin + annotationMargin) * 2,
+                height: bounds.height - headerHeight - footerHeight - annotationMargin * 2
+            )
+        }
         let width = max(data.boundingBox.width, 0.1)
         let height = max(data.boundingBox.height, 0.1)
         let scale = min(planRect.width / width, planRect.height / height)
@@ -164,44 +199,133 @@ enum FloorPlanDocumentRenderer {
         )
     }
 
+    private static func drawPlanGrid(in planRect: CGRect, context: CGContext) {
+        guard planRect.width > 8, planRect.height > 8 else { return }
+        context.saveGState()
+        context.clip(to: planRect)
+        let spacing = FloorPlanStyle.gridSpacingPoints
+        var x = planRect.minX
+        var column = 0
+        while x <= planRect.maxX {
+            let color = column % 4 == 0 ? FloorPlanStyle.gridLineMajor : FloorPlanStyle.gridLine
+            context.setStrokeColor(color.cgColor)
+            context.setLineWidth(0.5)
+            context.move(to: CGPoint(x: x, y: planRect.minY))
+            context.addLine(to: CGPoint(x: x, y: planRect.maxY))
+            context.strokePath()
+            x += spacing
+            column += 1
+        }
+        var y = planRect.minY
+        var row = 0
+        while y <= planRect.maxY {
+            let color = row % 4 == 0 ? FloorPlanStyle.gridLineMajor : FloorPlanStyle.gridLine
+            context.setStrokeColor(color.cgColor)
+            context.setLineWidth(0.5)
+            context.move(to: CGPoint(x: planRect.minX, y: y))
+            context.addLine(to: CGPoint(x: planRect.maxX, y: y))
+            context.strokePath()
+            y += spacing
+            row += 1
+        }
+        context.restoreGState()
+    }
+
     private static func drawRoomFill(data: FloorPlanData, layout: Layout, context: CGContext) {
         guard data.boundary.count >= 3 else { return }
-        let path = CGMutablePath()
-        path.move(to: layout.point(data.boundary[0]))
-        data.boundary.dropFirst().forEach { path.addLine(to: layout.point($0)) }
-        path.closeSubpath()
-        context.setFillColor(UIColor(red: 0.965, green: 0.972, blue: 0.985, alpha: 1).cgColor)
+        let path = boundaryPath(data: data, layout: layout)
+        context.setFillColor(FloorPlanStyle.roomFill.cgColor)
         context.addPath(path)
         context.fillPath()
     }
 
-    private static func drawWall(_ element: FloorPlanElement, layout: Layout, context: CGContext) {
+    private static func boundaryPath(data: FloorPlanData, layout: Layout) -> CGPath {
+        let path = CGMutablePath()
+        guard let first = data.boundary.first else { return path }
+        path.move(to: layout.point(first))
+        data.boundary.dropFirst().forEach { path.addLine(to: layout.point($0)) }
+        path.closeSubpath()
+        return path
+    }
+
+    private static func wallStrokeWidth(layout: Layout) -> CGFloat {
+        max(3.0, FloorPlanStyle.wallThicknessMeters * layout.scale)
+    }
+
+    /// Single closed path with round joins so corners look finished (Polycam-like).
+    private static func drawWallShell(
+        data: FloorPlanData,
+        walls: [FloorPlanElement],
+        layout: Layout,
+        context: CGContext
+    ) {
+        let width = wallStrokeWidth(layout: layout)
+        context.setStrokeColor(FloorPlanStyle.wallFill.cgColor)
+        context.setFillColor(FloorPlanStyle.roomFill.cgColor)
+        context.setLineWidth(width)
+        context.setLineJoin(.round)
+        context.setLineCap(.round)
+        context.setMiterLimit(2)
+
+        if data.boundary.count >= 3 {
+            let path = boundaryPath(data: data, layout: layout)
+            context.addPath(path)
+            context.drawPath(using: .fillStroke)
+            return
+        }
+
+        // Fallback: round-capped wall centerlines when boundary is missing.
+        context.setFillColor(FloorPlanStyle.roomFill.cgColor)
+        for wall in walls {
+            withElementTransform(wall, layout: layout, context: context) { rect in
+                context.setStrokeColor(FloorPlanStyle.wallFill.cgColor)
+                context.setLineWidth(width)
+                context.setLineCap(.round)
+                context.setLineJoin(.round)
+                context.move(to: CGPoint(x: rect.minX, y: rect.midY))
+                context.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+                context.strokePath()
+            }
+        }
+    }
+
+    /// Clears wall paint under openings so gaps stay clean.
+    private static func punchOpening(_ element: FloorPlanElement, layout: Layout, context: CGContext) {
         withElementTransform(element, layout: layout, context: context) { rect in
-            context.setFillColor(UIColor(red: 0.14, green: 0.16, blue: 0.22, alpha: 1).cgColor)
-            context.fill(rect)
+            let width = wallStrokeWidth(layout: layout) + 1.5
+            let gap = CGRect(
+                x: rect.minX - 0.5,
+                y: rect.midY - width / 2,
+                width: rect.width + 1,
+                height: width
+            )
+            context.setFillColor(FloorPlanStyle.roomFill.cgColor)
+            let path = UIBezierPath(roundedRect: gap, cornerRadius: min(width * 0.4, 6))
+            context.addPath(path.cgPath)
+            context.fillPath()
         }
     }
 
     private static func drawOpening(_ element: FloorPlanElement, layout: Layout, context: CGContext) {
         withElementTransform(element, layout: layout, context: context) { rect in
-            context.setFillColor(UIColor.white.cgColor)
-            context.fill(rect.insetBy(dx: -1, dy: -2))
-            context.setStrokeColor(UIColor(white: 0.68, alpha: 1).cgColor)
+            context.setStrokeColor(FloorPlanStyle.openingStroke.cgColor)
             context.setLineWidth(1)
             context.setLineDash(phase: 0, lengths: [4, 3])
-            context.stroke(rect)
+            context.setLineCap(.round)
+            context.move(to: CGPoint(x: rect.minX, y: rect.midY))
+            context.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            context.strokePath()
             context.setLineDash(phase: 0, lengths: [])
         }
     }
 
     private static func drawDoor(_ element: FloorPlanElement, layout: Layout, context: CGContext) {
         withElementTransform(element, layout: layout, context: context) { rect in
-            context.setFillColor(UIColor.white.cgColor)
-            context.fill(rect.insetBy(dx: -1, dy: -3))
-            let radius = rect.width
+            let radius = max(rect.width * 0.85, 10)
             let hinge = CGPoint(x: rect.minX, y: rect.midY)
-            context.setStrokeColor(UIColor(white: 0.34, alpha: 1).cgColor)
-            context.setLineWidth(1.2)
+            context.setStrokeColor(FloorPlanStyle.doorStroke.cgColor)
+            context.setLineWidth(1.25)
+            context.setLineCap(.round)
             context.move(to: hinge)
             context.addLine(to: CGPoint(x: rect.minX, y: rect.midY - radius))
             context.strokePath()
@@ -218,12 +342,12 @@ enum FloorPlanDocumentRenderer {
 
     private static func drawWindow(_ element: FloorPlanElement, layout: Layout, context: CGContext) {
         withElementTransform(element, layout: layout, context: context) { rect in
-            context.setFillColor(UIColor.white.cgColor)
-            context.fill(rect.insetBy(dx: -1, dy: -3))
-            context.setStrokeColor(SpatialSenseTheme.Color.primary.cgColor)
+            context.setStrokeColor(FloorPlanStyle.windowStroke.cgColor)
             context.setLineWidth(1.5)
-            let y1 = rect.midY - 2
-            let y2 = rect.midY + 2
+            context.setLineCap(.round)
+            let half = max(2.2, wallStrokeWidth(layout: layout) * 0.2)
+            let y1 = rect.midY - half
+            let y2 = rect.midY + half
             context.move(to: CGPoint(x: rect.minX, y: y1))
             context.addLine(to: CGPoint(x: rect.maxX, y: y1))
             context.move(to: CGPoint(x: rect.minX, y: y2))
@@ -241,10 +365,14 @@ enum FloorPlanDocumentRenderer {
         withElementTransform(element, layout: layout, context: context) { rect in
             let category: String
             if case .object(let value) = element.type { category = value.lowercased() } else { return }
-            context.setFillColor(UIColor(white: 0.96, alpha: 1).cgColor)
-            context.setStrokeColor(UIColor(white: 0.66, alpha: 1).cgColor)
+            context.setFillColor(FloorPlanStyle.symbolFill.cgColor)
+            context.setStrokeColor(FloorPlanStyle.symbolStroke.cgColor)
             context.setLineWidth(0.9)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: min(4, rect.height * 0.08))
+            let corner = min(
+                FloorPlanStyle.symbolCornerRadius,
+                max(3, min(rect.width, rect.height) * 0.18)
+            )
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: corner)
             context.addPath(path.cgPath)
             context.drawPath(using: .fillStroke)
             drawFurnitureSymbol(category: category, rect: rect, context: context)
@@ -432,19 +560,26 @@ enum FloorPlanDocumentRenderer {
         )
     }
 
-    private static func drawScaleBar(layout: Layout, bounds: CGRect, context: CGContext) {
-        let length = layout.scale
-        let start = CGPoint(x: 36, y: bounds.maxY - 36)
-        context.setStrokeColor(UIColor.black.cgColor)
-        context.setLineWidth(2)
+    private static func drawScaleBar(
+        layout: Layout,
+        bounds: CGRect,
+        context: CGContext,
+        compact: Bool
+    ) {
+        let length = min(layout.scale, compact ? layout.planRect.width * 0.22 : layout.scale)
+        let inset: CGFloat = compact ? 12 : 36
+        let start = CGPoint(x: layout.planRect.minX + inset, y: layout.planRect.maxY - inset)
+        context.setStrokeColor(FloorPlanStyle.wallStroke.cgColor)
+        context.setLineWidth(compact ? 1.5 : 2)
         context.move(to: start)
         context.addLine(to: CGPoint(x: start.x + length, y: start.y))
         context.strokePath()
-        "1 m".draw(
-            at: CGPoint(x: start.x, y: start.y + 4),
+        let label = length >= layout.scale * 0.95 ? "1 m" : String(format: "%.1f m", Double(length / layout.scale))
+        label.draw(
+            at: CGPoint(x: start.x, y: start.y + 3),
             withAttributes: [
-                .font: UIFont.systemFont(ofSize: 8),
-                .foregroundColor: UIColor.black
+                .font: UIFont.monospacedDigitSystemFont(ofSize: compact ? 7 : 8, weight: .medium),
+                .foregroundColor: FloorPlanStyle.dimension
             ]
         )
     }

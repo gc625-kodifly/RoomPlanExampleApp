@@ -41,6 +41,14 @@
 		CC000001DEADBEEF00000031 /* IfcExportBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000031 /* IfcExportBridge.swift */; };
 		CC000001DEADBEEF00000032 /* BimIfcFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000032 /* BimIfcFFI.xcframework */; };
 		CC000001DEADBEEF00000040 /* SpatialSenseTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000040 /* SpatialSenseTheme.swift */; };
+		CC000001DEADBEEF00000053 /* BlueprintBackgroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000053 /* BlueprintBackgroundView.swift */; };
+		CC000001DEADBEEF00000054 /* FloorPlanStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000054 /* FloorPlanStyle.swift */; };
+		CC000001DEADBEEF00000055 /* CaptureChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000055 /* CaptureChrome.swift */; };
+		CC000001DEADBEEF00000056 /* PointCloudPreviewRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000056 /* PointCloudPreviewRenderer.swift */; };
+		CC000001DEADBEEF00000057 /* PlusJakartaSans-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000057 /* PlusJakartaSans-Regular.ttf */; };
+		CC000001DEADBEEF00000058 /* PlusJakartaSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000058 /* PlusJakartaSans-Medium.ttf */; };
+		CC000001DEADBEEF00000059 /* PlusJakartaSans-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000059 /* PlusJakartaSans-SemiBold.ttf */; };
+		CC000001DEADBEEF0000005A /* PlusJakartaSans-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF0000005A /* PlusJakartaSans-Bold.ttf */; };
 		CC000001DEADBEEF00000041 /* ScanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000041 /* ScanCardView.swift */; };
 		CC000001DEADBEEF00000042 /* CaptureLibraryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000042 /* CaptureLibraryViewController.swift */; };
 		CC000001DEADBEEF00000043 /* PointCloudExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000002DEADBEEF00000043 /* PointCloudExporter.swift */; };
@@ -126,6 +134,14 @@
 		CC000002DEADBEEF00000031 /* IfcExportBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IfcExportBridge.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000032 /* BimIfcFFI.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = BimIfcFFI.xcframework; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000040 /* SpatialSenseTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialSenseTheme.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000053 /* BlueprintBackgroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlueprintBackgroundView.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000054 /* FloorPlanStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloorPlanStyle.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000055 /* CaptureChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureChrome.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000056 /* PointCloudPreviewRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudPreviewRenderer.swift; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000057 /* PlusJakartaSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "PlusJakartaSans-Regular.ttf"; path = Fonts/PlusJakartaSans-Regular.ttf; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000058 /* PlusJakartaSans-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "PlusJakartaSans-Medium.ttf"; path = Fonts/PlusJakartaSans-Medium.ttf; sourceTree = "<group>"; };
+		CC000002DEADBEEF00000059 /* PlusJakartaSans-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "PlusJakartaSans-SemiBold.ttf"; path = Fonts/PlusJakartaSans-SemiBold.ttf; sourceTree = "<group>"; };
+		CC000002DEADBEEF0000005A /* PlusJakartaSans-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "PlusJakartaSans-Bold.ttf"; path = Fonts/PlusJakartaSans-Bold.ttf; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000041 /* ScanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanCardView.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000042 /* CaptureLibraryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureLibraryViewController.swift; sourceTree = "<group>"; };
 		CC000002DEADBEEF00000043 /* PointCloudExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloudExporter.swift; sourceTree = "<group>"; };
@@ -212,6 +228,14 @@
 				ACEF94B22820AD2300776A9D /* SceneDelegate.swift */,
 				CC000002DEADBEEF00000001 /* Constants.swift */,
 				CC000002DEADBEEF00000040 /* SpatialSenseTheme.swift */,
+				CC000002DEADBEEF00000053 /* BlueprintBackgroundView.swift */,
+				CC000002DEADBEEF00000054 /* FloorPlanStyle.swift */,
+				CC000002DEADBEEF00000055 /* CaptureChrome.swift */,
+				CC000002DEADBEEF00000056 /* PointCloudPreviewRenderer.swift */,
+				CC000002DEADBEEF00000057 /* PlusJakartaSans-Regular.ttf */,
+				CC000002DEADBEEF00000058 /* PlusJakartaSans-Medium.ttf */,
+				CC000002DEADBEEF00000059 /* PlusJakartaSans-SemiBold.ttf */,
+				CC000002DEADBEEF0000005A /* PlusJakartaSans-Bold.ttf */,
 				CC000002DEADBEEF00000041 /* ScanCardView.swift */,
 				CC000002DEADBEEF00000042 /* CaptureLibraryViewController.swift */,
 				CC000002DEADBEEF00000004 /* RoomCaptureError.swift */,
@@ -408,6 +432,10 @@
 				CC000001DEADBEEF00000015 /* Localizable.strings in Resources */,
 				CC000001DEADBEEF00000016 /* InfoPlist.strings in Resources */,
 				CC000001DEADBEEF00000051 /* FurnitureAssets in Resources */,
+				CC000001DEADBEEF00000057 /* PlusJakartaSans-Regular.ttf in Resources */,
+				CC000001DEADBEEF00000058 /* PlusJakartaSans-Medium.ttf in Resources */,
+				CC000001DEADBEEF00000059 /* PlusJakartaSans-SemiBold.ttf in Resources */,
+				CC000001DEADBEEF0000005A /* PlusJakartaSans-Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -438,6 +466,10 @@
 				ACEF94C62820AF6600776A9D /* OnboardingViewController.swift in Sources */,
 				CC000001DEADBEEF00000001 /* Constants.swift in Sources */,
 				CC000001DEADBEEF00000040 /* SpatialSenseTheme.swift in Sources */,
+				CC000001DEADBEEF00000053 /* BlueprintBackgroundView.swift in Sources */,
+				CC000001DEADBEEF00000054 /* FloorPlanStyle.swift in Sources */,
+				CC000001DEADBEEF00000055 /* CaptureChrome.swift in Sources */,
+				CC000001DEADBEEF00000056 /* PointCloudPreviewRenderer.swift in Sources */,
 				CC000001DEADBEEF00000041 /* ScanCardView.swift in Sources */,
 				CC000001DEADBEEF00000042 /* CaptureLibraryViewController.swift in Sources */,
 				CC000001DEADBEEF00000043 /* PointCloudExporter.swift in Sources */,

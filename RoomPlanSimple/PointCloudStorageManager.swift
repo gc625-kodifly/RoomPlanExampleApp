@@ -2,19 +2,21 @@
 See LICENSE folder for this sample's licensing information.
 
 Abstract:
-Persists PCD captures and metadata for display in the capture library.
+Persists PCD captures, previews, and metadata for the capture library.
 */
 
 import Foundation
+import UIKit
 import ARKit
 
 struct SavedPointCloud: Codable, Identifiable {
     let id: UUID
-    let name: String
+    var name: String
     let date: Date
     let pointCount: Int
     let fileName: String
     let meshFileName: String?
+    let previewFileName: String?
     let triangleCount: Int
     let hasColor: Bool
 
@@ -25,6 +27,7 @@ struct SavedPointCloud: Codable, Identifiable {
         pointCount: Int,
         fileName: String,
         meshFileName: String? = nil,
+        previewFileName: String? = nil,
         triangleCount: Int = 0,
         hasColor: Bool = false
     ) {
@@ -34,6 +37,7 @@ struct SavedPointCloud: Codable, Identifiable {
         self.pointCount = pointCount
         self.fileName = fileName
         self.meshFileName = meshFileName
+        self.previewFileName = previewFileName
         self.triangleCount = triangleCount
         self.hasColor = hasColor
     }
@@ -46,6 +50,7 @@ struct SavedPointCloud: Codable, Identifiable {
         pointCount = try container.decode(Int.self, forKey: .pointCount)
         fileName = try container.decode(String.self, forKey: .fileName)
         meshFileName = try container.decodeIfPresent(String.self, forKey: .meshFileName)
+        previewFileName = try container.decodeIfPresent(String.self, forKey: .previewFileName)
         triangleCount = try container.decodeIfPresent(Int.self, forKey: .triangleCount) ?? 0
         hasColor = try container.decodeIfPresent(Bool.self, forKey: .hasColor) ?? false
     }
@@ -79,15 +84,19 @@ final class PointCloudStorageManager {
     func save(
         anchors: [ARMeshAnchor],
         colorsByAnchor: [UUID: [PointCloudExporter.RGBColor]] = [:],
-        voxelSize: Float = 0.02
+        voxelSize: Float = 0.02,
+        previewImage: UIImage? = nil
     ) throws -> SavedPointCloud {
         let id = UUID()
         let date = Date()
-        let fileName = "SpatialSense_\(timestamp(date))_\(id.uuidString.prefix(8)).pcd"
-        let meshFileName = "SpatialSense_\(timestamp(date))_\(id.uuidString.prefix(8)).ply"
+        let stamp = "\(timestamp(date))_\(id.uuidString.prefix(8))"
+        let fileName = "SpatialSense_\(stamp).pcd"
+        let meshFileName = "SpatialSense_\(stamp).ply"
+        let previewFileName = "SpatialSense_\(stamp)_preview.png"
         let storageDirectory = try directory
         let pcdURL = storageDirectory.appendingPathComponent(fileName)
         let plyURL = storageDirectory.appendingPathComponent(meshFileName)
+        let previewURL = storageDirectory.appendingPathComponent(previewFileName)
         let result = try PointCloudExporter.makeExportResult(
             from: anchors,
             colorsByAnchor: colorsByAnchor,
@@ -100,6 +109,17 @@ final class PointCloudStorageManager {
             try? fileManager.removeItem(at: pcdURL)
             throw error
         }
+
+        let resolvedPreview = previewImage ?? PointCloudPreviewRenderer.image(
+            points: result.points,
+            mesh: result.mesh
+        )
+        var storedPreviewName: String?
+        if let resolvedPreview, let data = resolvedPreview.pngData() {
+            try? data.write(to: previewURL, options: .atomic)
+            storedPreviewName = previewFileName
+        }
+
         let capture = SavedPointCloud(
             id: id,
             name: "Point Cloud \(displayTimestamp(date))",
@@ -107,6 +127,7 @@ final class PointCloudStorageManager {
             pointCount: result.points.count,
             fileName: fileName,
             meshFileName: meshFileName,
+            previewFileName: storedPreviewName,
             triangleCount: result.mesh.faces.count,
             hasColor: !colorsByAnchor.isEmpty
         )
@@ -117,9 +138,82 @@ final class PointCloudStorageManager {
         } catch {
             try? fileManager.removeItem(at: pcdURL)
             try? fileManager.removeItem(at: plyURL)
+            if let storedPreviewName {
+                try? fileManager.removeItem(at: storageDirectory.appendingPathComponent(storedPreviewName))
+            }
             throw error
         }
         return capture
+    }
+
+    func save(
+        exportResult result: PointCloudExporter.ExportResult,
+        hasColor: Bool,
+        previewImage: UIImage? = nil,
+        name: String? = nil
+    ) throws -> SavedPointCloud {
+        let id = UUID()
+        let date = Date()
+        let stamp = "\(timestamp(date))_\(id.uuidString.prefix(8))"
+        let fileName = "SpatialSense_\(stamp).pcd"
+        let meshFileName = "SpatialSense_\(stamp).ply"
+        let previewFileName = "SpatialSense_\(stamp)_preview.png"
+        let storageDirectory = try directory
+        let pcdURL = storageDirectory.appendingPathComponent(fileName)
+        let plyURL = storageDirectory.appendingPathComponent(meshFileName)
+        let previewURL = storageDirectory.appendingPathComponent(previewFileName)
+
+        try PointCloudExporter.writePCD(result.points, to: pcdURL)
+        try PointCloudExporter.writePLY(result.mesh, to: plyURL)
+
+        let resolvedPreview = previewImage ?? PointCloudPreviewRenderer.image(
+            points: result.points,
+            mesh: result.mesh
+        )
+        var storedPreviewName: String?
+        if let resolvedPreview, let data = resolvedPreview.pngData() {
+            try? data.write(to: previewURL, options: .atomic)
+            storedPreviewName = previewFileName
+        }
+
+        let resolvedName = {
+            let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? Self.suggestedName(date: date) : trimmed
+        }()
+
+        let capture = SavedPointCloud(
+            id: id,
+            name: resolvedName,
+            date: date,
+            pointCount: result.points.count,
+            fileName: fileName,
+            meshFileName: meshFileName,
+            previewFileName: storedPreviewName,
+            triangleCount: result.mesh.faces.count,
+            hasColor: hasColor
+        )
+        let metadataURL = storageDirectory.appendingPathComponent("\(id.uuidString).pointcloud.json")
+        try encoder.encode(capture).write(to: metadataURL, options: .atomic)
+        return capture
+    }
+
+    static func suggestedName(date: Date = Date()) -> String {
+        "Point Cloud \(sharedDisplayTimestamp(date))"
+    }
+
+    private static func sharedDisplayTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    func update(_ capture: SavedPointCloud) throws {
+        let metadataURL = try directory.appendingPathComponent("\(capture.id.uuidString).pointcloud.json")
+        guard fileManager.fileExists(atPath: metadataURL.path) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        try encoder.encode(capture).write(to: metadataURL, options: .atomic)
     }
 
     func getSavedPointClouds() -> [SavedPointCloud] {
@@ -152,6 +246,7 @@ final class PointCloudStorageManager {
                     pointCount: Self.readPointCount(from: url),
                     fileName: url.lastPathComponent,
                     meshFileName: nil,
+                    previewFileName: nil,
                     triangleCount: 0,
                     hasColor: Self.hasRGBField(in: url)
                 )
@@ -170,11 +265,22 @@ final class PointCloudStorageManager {
         return fileManager.fileExists(atPath: url.path) ? url : nil
     }
 
+    func previewImage(for capture: SavedPointCloud) -> UIImage? {
+        guard let previewFileName = capture.previewFileName,
+              let directory = try? directory else { return nil }
+        let url = directory.appendingPathComponent(previewFileName)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return UIImage(data: data)
+    }
+
     func delete(_ capture: SavedPointCloud) throws {
         let directory = try directory
         try? fileManager.removeItem(at: directory.appendingPathComponent(capture.fileName))
         if let meshFileName = capture.meshFileName {
             try? fileManager.removeItem(at: directory.appendingPathComponent(meshFileName))
+        }
+        if let previewFileName = capture.previewFileName {
+            try? fileManager.removeItem(at: directory.appendingPathComponent(previewFileName))
         }
         try? fileManager.removeItem(
             at: directory.appendingPathComponent("\(capture.id.uuidString).pointcloud.json")

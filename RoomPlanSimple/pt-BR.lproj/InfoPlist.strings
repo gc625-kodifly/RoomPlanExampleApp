@@ -7,5 +7,5 @@
 
 "NSCameraUsageDescription" = "O acesso à câmera e ao LiDAR cria modelos de ambientes. As fotos de evidência que você optar por tirar ficam armazenadas com o ambiente até serem excluídas ou exportadas.";
 
-"CFBundleDisplayName" = "RoomPlan";
-"CFBundleName" = "RoomPlanSimple";
+"CFBundleDisplayName" = "SpatialSense";
+"CFBundleName" = "SpatialSense";

@@ -73,6 +73,12 @@ enum L10n {
             static let ready = "home.scanStatus.ready"
             static let local = "home.scanStatus.local"
         }
+
+        static let libraryTab = "home.libraryTab"
+        static let capturesEmptyHint = "home.capturesEmptyHint"
+        static let capturesCount = "home.capturesCount"
+        static let capturesCountOne = "home.capturesCount.one"
+        static let capturesCountMany = "home.capturesCount.many"
     }
 
     // MARK: - Features
@@ -110,6 +116,14 @@ enum L10n {
         static let photoCaptured = "scan.photoCaptured"
         static let roomSaved = "scan.roomSaved"
         static let roomSavedMessage = "scan.roomSavedMessage"
+
+        enum Sheet {
+            static let title = "scan.sheet.title"
+            static let message = "scan.sheet.message"
+            static let room = "scan.sheet.room"
+            static let pointCloud = "scan.sheet.pointCloud"
+            static let lidarRequired = "scan.sheet.lidarRequired"
+        }
 
         enum Error {
             static let title = "scan.error.title"

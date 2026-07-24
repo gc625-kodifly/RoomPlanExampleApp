@@ -140,7 +140,7 @@
 "export.dxf" = "DXF (CAD Grundriss)";
 "export.svg" = "SVG (Vektor Grundriss)";
 "export.ifc" = "IFC (BIM Modell)";
-"export.formatDesc.ifc" = "Industry Foundation Classes — offener BIM-Standard";
+"export.formatDesc.ifc" = "Industry Foundation Classes - offener BIM-Standard";
 "export.png" = "PNG (Grundriss Bild)";
 "export.complete" = "Vollständiger Export (Alle Daten)";
 "export.chooseExport" = "Export auswählen";

@@ -189,7 +189,7 @@ struct FloorPlanData: Codable {
     /// Version 3 floor surfaces with elevation relative to `verticalDatum`.
     let floorComponents: [FloorComponent]
     let roomArea: Float
-    let roomName: String
+    var roomName: String
     let createdAt: Date
     /// Rigid rotation from capture coordinates into the presentation coordinate system.
     let presentationRotation: CGFloat
@@ -537,7 +537,9 @@ struct FloorPlanData: Codable {
     }
 
     static func normalizedWallThickness(_ measuredThickness: CGFloat) -> CGFloat {
-        max(measuredThickness, 0.10)
+        // Ignore noisy RoomPlan Z. Plan walls always use one visual thickness.
+        _ = measuredThickness
+        return FloorPlanStyle.wallThicknessMeters
     }
 
     private static func polygonArea(_ points: [CGPoint]) -> CGFloat {
@@ -855,7 +857,8 @@ class FloorPlanView: UIView, UIGestureRecognizerDelegate {
             context: context,
             options: FloorPlanRenderOptions(
                 showDimensions: showDimensions,
-                showLabels: showLabels
+                showLabels: showLabels,
+                presentation: FloorPlanRenderPresentation.viewer
             )
         )
 
